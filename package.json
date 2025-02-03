@@ -1,0 +1,168 @@
+{
+  "name": "tasks",
+  "displayName": "Tasks",
+  "description": "Quick access to workspace tasks from explorer sidebar with enhanced performance and visual feedback",
+  "version": "0.0.0",
+  "publisher": "isopodlabs",
+  "license": "MIT",
+  "icon": "images/icon.png",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "tasks",
+    "task runner",
+    "workspace",
+    "productivity",
+    "build"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/adrianstephens/vscode-tasks.git"
+  },
+  "contributes": {
+    "configuration": {
+      "title": "Tasks",
+      "properties": {
+        "taskview.icons": {
+          "type": "object",
+          "description": "A mapping of strings to icon names.",
+          "default": {
+            "clean": 			"trash",
+            "build": 			"package",
+            "rebuild": 		"package",
+            "test": 			"beaker",
+            "debug": 			"bug",
+            "launch": 		"rocket",
+            "terminal": 	"terminal",
+            "watch": 			"eye",
+            "deploy": 		"cloud-upload",
+            "start": 			"play",
+            "stop": 			"stop",
+            "publish": 		"cloud",
+            "default": 		"gear"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "description": "The icon name for the given string key."
+          }
+        },
+        "taskview.colors": {
+          "type": "object",
+          "description": "A mapping of strings to colors.",
+          "default": {
+	          "npm": 					"charts.red",
+	          "shell": 				"charts.blue",
+	          "typescript": 	"charts.purple",
+	          "gulp": 				"charts.orange",
+	          "grunt": 				"charts.yellow",
+	          "node": 				"charts.red",
+	          "extensionHost":"charts.blue",
+	          "chrome":				"charts.green",
+	          "msedge":				"charts.purple",
+	          "compound":			"charts.blue",
+	          "default": 			"charts.yellow"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "description": "The icon color for the given string key."
+          }
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "tasks.refresh",
+        "title": "Refresh Tasks",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "tasks.stop",
+        "title": "Stop Task",
+        "icon": "$(stop)"
+      },
+      {
+        "command": "tasks.edit",
+        "title": "Edit Task",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "tasks.showLaunches",
+        "title": "Show Launches",
+        "icon": "$(bug)"
+      },
+      {
+        "command": "tasks.launchRefresh",
+        "title": "Refresh Tasks",
+        "icon": "$(refresh)"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "tasks.view",
+          "name": "Tasks"
+        }
+      ],
+      "debug": [
+        {
+          "id": "tasks.launchView",
+          "name": "Launches"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "tasks.refresh",
+          "when": "view == tasks.view",
+          "group": "navigation"
+        },
+        {
+          "command": "tasks.showLaunches",
+          "when": "view == tasks.view",
+          "group": "navigation"
+        },
+        {
+          "command": "tasks.launchRefresh",
+          "when": "view == tasks.launchView",
+          "group": "navigation"
+        }
+
+      ],
+      "view/item/context": [
+        {
+          "command": "tasks.stop",
+          "when": "view == tasks.view && viewItem == running",
+          "group": "inline"
+        },
+        {
+          "command": "tasks.edit",
+          "when": "view == tasks.view && viewItem != noedit",
+          "group": "inline"
+        }
+
+      ]
+    }
+  },
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -p ./",
+		"lint": "eslint \"src/**/*.ts\"",
+		"watch": "tsc -watch -p ./",
+    "package": "vsce package",
+		"publish": "vsce publish patch"
+	},
+  "devDependencies": {
+    "@types/mocha": "^10.0.9",
+    "@types/node": "20.x",
+    "@types/vscode": "^1.80.0",
+    "@typescript-eslint/eslint-plugin": "^8.10.0",
+    "@typescript-eslint/parser": "^8.7.0"
+  }
+}

@@ -1,0 +1,51 @@
+// See https://go.microsoft.com/fwlink/?LinkId=733558
+// for the documentation about the tasks.json format
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+            "label": "npm: watch",
+			"type": "shell",
+			"command": "tsc -watch -p ./",
+			"problemMatcher": "$tsc-watch",
+			"isBackground": true,
+			"presentation": {
+				"reveal": "never"
+			},
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+        {
+            "type": "shell",
+            "label": "prepublish",
+            "command": "git add . & if not ${input:version}==none npm version ${input:version} --force",
+            "problemMatcher": [],
+            "dependsOn": "npm: compile"
+        },
+        {
+            "type": "shell",
+            "label": "PUBLISH",
+            "command": "node E:\\Github\\vscode-vsce\\vsce publish",
+            "problemMatcher": [],
+            "dependsOn": "prepublish"
+        },
+        {
+            "type": "shell",
+            "label": "PACKAGE",
+            "command": "node E:\\Github\\vscode-vsce\\vsce package",
+            "problemMatcher": []
+        }
+
+	],
+    "inputs": [
+        {
+            "id": "version",
+            "description": "Version bump:",
+            "type": "pickString",
+            "options": ["none", "patch", "minor", "major"],
+            "default": "none"
+        },
+    ]
+}
