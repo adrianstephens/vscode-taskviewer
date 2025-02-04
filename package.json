@@ -24,7 +24,7 @@
   "main": "./out/extension.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/adrianstephens/vscode-tasklist.git"
+    "url": "https://github.com/adrianstephens/vscode-taskviewer.git"
   },
   "files": [
     "out/**/*.js",
@@ -35,7 +35,7 @@
     "configuration": {
       "title": "Task List",
       "properties": {
-        "tasklist.icons": {
+        "taskviewer.icons": {
           "type": "object",
           "description": "A mapping of strings to icon names.",
           "default": {
@@ -60,7 +60,7 @@
             "description": "The icon name for the given string key."
           }
         },
-        "tasklist.colors": {
+        "taskviewer.colors": {
           "type": "object",
           "description": "A mapping of strings to colors.",
           "default": {
@@ -105,6 +105,21 @@
         "icon": "$(bug)"
       },
       {
+        "command": "tasks.hideLaunches",
+        "title": "Hide Launches",
+        "icon": "$(debug)"
+      },
+      {
+        "command": "tasks.showConfig",
+        "title": "Show Configured Tasks",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "tasks.showAll",
+        "title": "Show All Tasks",
+        "icon": "$(filter-filled)"
+      },
+      {
         "command": "tasks.launchRefresh",
         "title": "Refresh Tasks",
         "icon": "$(refresh)"
@@ -129,12 +144,27 @@
         {
           "command": "tasks.refresh",
           "when": "view == tasks.view",
-          "group": "navigation"
+          "group": "navigation@3"
+        },
+        {
+          "command": "tasks.showAll",
+          "when": "view == tasks.view && !taskviewer.all",
+          "group": "navigation@2"
+        },
+        {
+          "command": "tasks.showConfig",
+          "when": "view == tasks.view && taskviewer.all",
+          "group": "navigation@2"
         },
         {
           "command": "tasks.showLaunches",
-          "when": "view == tasks.view",
-          "group": "navigation"
+          "when": "view == tasks.view && !taskviewer.launches",
+          "group": "navigation@1"
+        },
+        {
+          "command": "tasks.hideLaunches",
+          "when": "view == tasks.view && taskviewer.launches",
+          "group": "navigation@1"
         },
         {
           "command": "tasks.launchRefresh",
@@ -162,13 +192,17 @@
     "lint": "eslint \"src/**/*.ts\"",
     "watch": "tsc -watch -p ./",
     "package": "vsce package",
-    "publish": "vsce publish patch"
+    "publish": "vsce publish patch",
+    "generate-icons": "ts-node scripts/icons.ts node_modules/@vscode/codicons/src/icons assets/icons"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.9",
     "@types/node": "20.x",
     "@types/vscode": "^1.80.0",
     "@typescript-eslint/eslint-plugin": "^8.10.0",
-    "@typescript-eslint/parser": "^8.7.0"
+    "@typescript-eslint/parser": "^8.7.0",
+    "@vscode/codicons": "^0.0.36",
+    "sharp": "^0.33.5",
+    "ts-node": "^10.9.2"
   }
 }

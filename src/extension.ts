@@ -86,14 +86,15 @@ function editConfig(name: string, configuration: string, entries: string, matchF
 abstract class TaskItem {
 	abstract type: string;
 	abstract name: string;
-	get order()	: number | undefined { return undefined; }
-	icontype(): string	{ return this.type; }
-	colortype(): string	{ return ''; }
-	tooltip(): vscode.MarkdownString | undefined { return undefined }
-	run()	{}
+	get order():	number | undefined { return undefined; }
+	icontype():		string	{ return this.type; }
+	colortype():	string	{ return ''; }
+	group(): 		string	{ return ''; }
+	tooltip(): 		vscode.MarkdownString | undefined { return undefined }
+	run?():void;
 	edit()	{}
-	hasChildren() { return false; }
-	children(): TaskItem[] { return []; }
+	hasChildren() 			{ return false; }
+	children(): TaskItem[]	{ return []; }
 }
 
 class TaskItemGroup extends TaskItem {
@@ -106,30 +107,36 @@ class TaskItemGroup extends TaskItem {
 
 const CACHE_TIMEOUT = 5000;
 
-abstract class TaskItemTaskBase extends TaskItem {
+class TaskGetter {
 	static tasks?: Thenable<Record<string, vscode.Task>>;
 
-	static async getTask(name: string) : Promise<vscode.Task|undefined> {
+	static getTasks() {
 		if (!this.tasks) {
 			this.tasks 	= vscode.tasks.fetchTasks().then(tasks => {
 				setTimeout(()=> this.tasks = undefined, CACHE_TIMEOUT);
-				return Object.fromEntries(tasks.filter(task => task.source === 'Workspace' || (task as any)._source?.kind === 2).map(task => [task.name, task]));
+				return Object.fromEntries(tasks.map(task => [task.name, task]));
 			});
 		}
-		const tasks = await this.tasks;
-		return tasks[name];
+		return this.tasks;
 	}
+	static async getTask(name: string) : Promise<vscode.Task|undefined> {
+		return (await this.getTasks())[name];
+	}
+}
+
+abstract class TaskItemTaskBase extends TaskItem {
 	get type()	{ return 'task'; }
-	run()	{ TaskItemTask.getTask(this.name).then(task => task && vscode.tasks.executeTask(task)); }
+	run()	{ TaskGetter.getTask(this.name).then(task => task && vscode.tasks.executeTask(task)); }
 	edit()	{ editConfig(this.name, 'tasks', 'tasks', ['label', 'task', 'script']); }
 }
 
-class TaskItemTask extends TaskItemTaskBase {
+class TaskItemTaskConfig extends TaskItemTaskBase {
 	constructor(private config: TaskConfiguration) { super(); }
 	get name()	{ return this.config.label ?? this.config.script ?? this.config.task ?? ''; }
 
 	icontype()	{ return this.name.toLowerCase(); }
 	colortype()	{ return this.config.type ?? 'compound'; }
+	group()		{ return (typeof this.config.group === 'string' ? this.config.group : this.config.group?.kind) ?? ''; }
 
 	tooltip() {
 		const tooltip = new vscode.MarkdownString('', true);
@@ -152,6 +159,27 @@ class TaskItemTask extends TaskItemTaskBase {
 	}
 }
 
+class TaskItemTask extends TaskItemTaskBase {
+	constructor(private task: vscode.Task) { super(); }
+	get name()	{ return this.task.name; }
+
+	icontype()	{ return this.name.toLowerCase(); }
+	colortype()	{ return this.task.definition.type; }
+	group()		{ return this.task.group?.id ?? ''; }
+
+	tooltip() {
+		const tooltip = new vscode.MarkdownString('', true);
+		tooltip.isTrusted	= true;
+		tooltip.supportHtml = true;
+		tooltip.appendMarkdown(`**Type:** ${this.task.definition.type}\n\n`);
+		if (this.task.detail)
+			tooltip.appendMarkdown(`**Detail:** ${this.task.detail}\n\n`);
+		return tooltip;
+	}
+	run()	{ vscode.tasks.executeTask(this.task); }
+
+}
+
 class TaskItemBefore extends TaskItemTaskBase {
 	constructor(public name: string) { super(); }
 	icontype()	{ return 'before'; }
@@ -167,6 +195,8 @@ class TaskItemLaunch extends TaskItem {
 	get name()	{ return this.config.name; }
 	get order()	{ return this.config.presentation?.order;}
 	colortype()	{ return this.config.type; }
+	group()		{ return this.config.presentation?.group ?? ''; }
+
 	run() {
 		const ws = findWorkspace(this.config.name, 'launch', 'configurations', ['name']);
 		vscode.debug.startDebugging(ws, this.config);
@@ -191,6 +221,7 @@ class TaskItemCompound extends TaskItem {
 	get name()	{ return this.config.name; }
 	get order()	{ return this.config.presentation?.order;}
 	colortype()	{ return 'compound'; }
+	group()		{ return this.config.presentation?.group ?? ''; }
 
 	run() {
 		const ws = findWorkspace(this.config.name, 'launch', 'compounds', ['name']);
@@ -225,7 +256,6 @@ class TasksShared {
 	launches:		LaunchConfiguration[]			= [];
 	compounds: 		CompoundLaunchConfiguration[]	= [];
 	taskConfigs:	TaskConfiguration[]				= [];
-	tasks?:			Thenable<vscode.Task[]>;
 
 	constructor(context: vscode.ExtensionContext) {
 		context.subscriptions.push(
@@ -287,20 +317,13 @@ class TasksShared {
 
 	refresh() {
 		this.status		= {};
-		const config	= vscode.workspace.getConfiguration('tasklist');
+		const config	= vscode.workspace.getConfiguration('taskviewer');
 		this.icons		= config.icons;
 		this.colors		= config.colors;
 
 		this.launches 		= [];
 		this.compounds		= [];
 		this.taskConfigs	= [];
-
-		if (!this.tasks) {
-			this.tasks 	= vscode.tasks.fetchTasks().then(tasks => {
-				setTimeout(()=> this.tasks = undefined, CACHE_TIMEOUT);
-				return tasks;
-			});
-		}
 
 		if (vscode.workspace.workspaceFolders) {
 			for (const i of vscode.workspace.workspaceFolders) {
@@ -322,11 +345,12 @@ class TasksShared {
 
 function makeTreeItem(item: TaskItem, icon_name: string, icon_color: string) {
 	const titem = new vscode.TreeItem(item.name, item.hasChildren() ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
-	titem.command = {
-		command: 'tasks.run',
-		title: '',
-		arguments: [item]
-	};
+	if (item.run)
+		titem.command = {
+			command: 'tasks.run',
+			title: '',
+			arguments: [item]
+		};
 	titem.iconPath	= new vscode.ThemeIcon(
 		icon_name,
 		new vscode.ThemeColor(icon_color)
@@ -337,6 +361,8 @@ function makeTreeItem(item: TaskItem, icon_name: string, icon_color: string) {
 class TaskTreeProvider implements vscode.TreeDataProvider<TaskItem> {
 	private readonly _onDidChangeTreeData = new vscode.EventEmitter<TaskItem | undefined | null | void>();
 	get onDidChangeTreeData() { return this._onDidChangeTreeData.event; }
+
+	public allTasks = false;
 	
 	constructor(private shared: TasksShared, public showTasks: boolean, public showLaunches: boolean) {
 	}
@@ -385,23 +411,28 @@ class TaskTreeProvider implements vscode.TreeDataProvider<TaskItem> {
 
 			// sort into groups
 
+			const addToGroup = (item: TaskItem) => (groups[item.group()] ??= []).push(item);
+
 			if (this.showTasks) {
-				this.shared.taskConfigs.forEach(i => {
-					//const group = groups[i.presentation?.group ?? (typeof i.group === 'string' ? i.group : i.group?.kind) ?? ''] ??= [];
-					const group = groups[(typeof i.group === 'string' ? i.group : i.group?.kind) ?? ''] ??= [];
-					group.push(new TaskItemTask(i));
-				});
+				if (this.allTasks) {
+					const tasks = await TaskGetter.getTasks();
+
+					this.shared.taskConfigs.forEach(i => {
+						const item = new TaskItemTaskConfig(i);
+						delete tasks[item.name];
+						addToGroup(item);
+					});
+
+					Object.values(tasks).forEach(i => addToGroup(new TaskItemTask(i)));
+
+				} else {
+					this.shared.taskConfigs.forEach(i => addToGroup(new TaskItemTaskConfig(i)));
+				}
 			}
 
 			if (this.showLaunches) {
-				this.shared.launches.forEach(i => {
-					const group = groups[i.presentation?.group ?? ''] ??= [];
-					group.push(new TaskItemLaunch(i));
-				});
-				this.shared.compounds.forEach(i => {
-					const group = groups[i.presentation?.group ?? ''] ??= [];
-					group.push(new TaskItemCompound(i));
-				});
+				this.shared.launches.forEach(i => addToGroup(new TaskItemLaunch(i)));
+				this.shared.compounds.forEach(i => addToGroup(new TaskItemCompound(i)));
 			}
 
 			if (groups['']) {
@@ -445,18 +476,34 @@ export function activate(context: vscode.ExtensionContext): void {
 			shared.refresh();
 			taskTree.refresh();
 		}),
-		vscode.commands.registerCommand('tasks.showLaunches', () => {
-			taskTree.showLaunches = !taskTree.showLaunches;
-			taskTree.refresh();
-		}),
 
 		vscode.commands.registerCommand('tasks.launchRefresh', () => {
 			shared.refresh();
 			launchTree.refresh();
 		}),
 
-		vscode.commands.registerCommand('tasks.run',	(item: TaskItem) => item.run()),
+		vscode.commands.registerCommand('tasks.run',	(item: TaskItem) => item.run!()),
 		vscode.commands.registerCommand('tasks.edit',	(item: TaskItem) => item.edit()),
+
+		vscode.commands.registerCommand('tasks.showLaunches', () => {
+			vscode.commands.executeCommand("setContext", "taskviewer.launches", taskTree.showLaunches = true);
+			taskTree.refresh();
+		}),
+		vscode.commands.registerCommand('tasks.hideLaunches', () => {
+			vscode.commands.executeCommand("setContext", "taskviewer.launches", taskTree.showLaunches = false);
+			taskTree.refresh();
+		}),
+
+		vscode.commands.registerCommand('tasks.showAll',	() => {
+			vscode.commands.executeCommand("setContext", "taskviewer.all", taskTree.allTasks = true);
+			taskTree.refresh();
+		}),
+		vscode.commands.registerCommand('tasks.showConfig',	() => {
+			taskTree.allTasks = true;
+			vscode.commands.executeCommand("setContext", "taskviewer.all", taskTree.allTasks = false);
+			taskTree.refresh();
+		}),
+
 
 		vscode.tasks.onDidStartTaskProcess(e => {
 			if (e.execution.task) {

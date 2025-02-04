@@ -11,50 +11,37 @@ Provides quick access to your workspace tasks and/or launch scripts from the exp
 - Task and Launch script execution on click from the explorer view
 - Task and Launch script editing (opens in appropriate tasks.json or launch.json)
 - Visual status updates for running, successful, or failed tasks (with exit codes)
-- Stop button for running tasks or active debug sessions
-
-<style>
-@font-face {
-	font-family: "codicon";
-	src: url("assets/codicon.ttf") format("truetype");
-}
-red { color: Red }
-green { color: Green }
-blue { color: Blue }
-orange { color: Orange }
-purple { color: Purple }
-yellow { color: Yellow }
-icon { font-family: codicon }
-</style>
+- Stop button for running tasks or active debug sessions (<img src="https://raw.githubusercontent.com/microsoft/vscode-codicons/main/src/icons/stop-circle.svg" width="16" height="16" />)
 
 ### Icons
-Theme icons are associated with strings found in task or launch script names, and can be customized using the setting taskList.icons. The default associations are:
-- clean: 			trash ( <icon>&#xEA81;</icon> )
-- build: 			package ( <icon>&#xEB29;</icon> )
-- rebuild: 			package ( <icon>&#xEB29;</icon> )
-- test: 			beaker ( <icon>&#xEA79;</icon> )
-- debug: 			bug ( <icon>&#xEAAF;</icon> )
-- launch: 			rocket ( <icon>&#xEB44;</icon> )
-- terminal: 		terminal ( <icon>&#xEA85;</icon> )
-- watch: 			eye ( <icon>&#xEB7C;</icon> )
-- deploy: 			cloud-upload ( <icon>&#xEBAA;</icon> )
-- start: 			play ( <icon>&#xEB2C;</icon> )
-- stop: 			stop ( <icon>&#xEAD7;</icon> )
-- publish: 			cloud ( <icon>&#xEBAA;</icon> )
-- default: 			gear ( <icon>&#xEAF8;</icon> )
+
+Theme icons are associated with strings found in task or launch script names, and can be customized using the setting taskviewer.icons. The default associations are:
+- clean:			trash			(<img src="assets/icons/trash.png"/>)
+- build: 			package 		(<img src="assets/icons/package.png"/>)
+- rebuild: 			package 		(<img src="assets/icons/package.png"/>)
+- test: 			beaker 			(<img src="assets/icons/beaker.png"/>)
+- debug: 			bug 			(<img src="assets/icons/bug.png"/>)
+- launch: 			rocket 			(<img src="assets/icons/rocket.png"/>)
+- terminal: 		terminal 		(<img src="assets/icons/terminal.png"/>)
+- watch: 			eye 			(<img src="assets/icons/eye.png"/>)
+- deploy: 			cloud-upload	(<img src="assets/icons/cloud-upload.png"/>)
+- start: 			play 			(<img src="assets/icons/play.png"/>)
+- stop: 			$(debug-stop) 			(<img src="assets/icons/debug-stop.png"/>)
+- publish: 			cloud 			(<img src="assets/icons/cloud.png"/>)
+- default: 			gear 			(<img src="assets/icons/gear.png"/>)
 
 ### Colors
-Theme colors are associated with task or launch script types, and can be customized using the setting taskList.colors. The default associations are:
+Theme colors are associated with task or launch script types, and can be customized using the setting taskviewer.colors. The default associations are:
 ##### Tasks
-- npm: 				<red>chart.red</red>
-- shell: 			<blue>chart.blue</blue>
-- typescript: 	    <purple>chart.purple</purple>
-- gulp: 			<orange>chart.orange</orange>
-- grunt: 			<yellow>chart.yellow</yellow>
+- npm: 				<span style="color: red;">chart.red</span>
+- shell: 			<span style="color: blue;">chart.blue</span>
+- typescript: 	    <span style="color: purple;">chart.purple</span>
+- gulp: 			<span style="color: orange;">chart.orange</span>
+- grunt: 			<span style="color: yellow;">chart.yellow</span>
 ##### Launch scripts
-- node: 			<red>chart.red</red>
-- extensionHost:    <blue>chart.blue</blue>
-- chrome:			<green>chart.green</green>
-- msedge:			<purple>chart.purple</purple>
-- compound:			<blue>chart.blue</blue>
-- default: 			<yellow>chart.yellow</yellow>
+- node: 			<span style="color: red">chart.red</span>
+- extensionHost:    <span style="color: blue">chart.blue</span>
+- chrome:			<span style="color: green">chart.green</span>
+- msedge:			<span style="color: purple">chart.purple</span>
+- compound:			<span style="color: blue">chart.blue</span>
+- default: 			<span style="color: yellow">chart.yellow</span>
