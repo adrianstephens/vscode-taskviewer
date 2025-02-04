@@ -3,41 +3,53 @@
 {
 	"version": "2.0.0",
 	"tasks": [
-		{
+        {
+            "type": "npm",
+            "script": "compile",
+            "isBackground": false,
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": "$tsc-watch"
+        },
+        {
             "label": "npm: watch",
 			"type": "shell",
+			"group": "build",
 			"command": "tsc -watch -p ./",
 			"problemMatcher": "$tsc-watch",
-			"isBackground": true,
-			"presentation": {
-				"reveal": "never"
-			},
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			}
+			"isBackground": true
 		},
         {
             "type": "shell",
             "label": "prepublish",
-            "command": "git add . & if not ${input:version}==none npm version ${input:version} --force",
+            "command": "git add .; if [ '${input:version}' != 'none' ]; then npm version ${input:version} --force; fi",
+            "windows": {
+                "command": "git add . & if not ${input:version}==none npm version ${input:version} --force",
+            },
             "problemMatcher": [],
             "dependsOn": "npm: compile"
         },
         {
             "type": "shell",
             "label": "PUBLISH",
-            "command": "node E:\\Github\\vscode-vsce\\vsce publish",
+            "command": "vsce publish",
             "problemMatcher": [],
             "dependsOn": "prepublish"
         },
         {
             "type": "shell",
             "label": "PACKAGE",
-            "command": "node E:\\Github\\vscode-vsce\\vsce package",
+            "command": "vsce package",
+            "problemMatcher": []
+        },
+        {
+            "label": "install",
+            "type": "shell",
+            "command": "code --install-extension ${workspaceFolder}/*.vsix",
             "problemMatcher": []
         }
-
 	],
     "inputs": [
         {

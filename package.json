@@ -1,15 +1,16 @@
 {
-  "name": "tasks",
-  "displayName": "Tasks",
-  "description": "Quick access to workspace tasks from explorer sidebar with enhanced performance and visual feedback",
-  "version": "0.0.0",
+  "name": "tasklist",
+  "displayName": "Task List",
+  "description": "Quick access to workspace tasks from and launch scripts from explorer sidebar",
+  "version": "0.1.0",
   "publisher": "isopodlabs",
   "license": "MIT",
-  "icon": "images/icon.png",
+  "icon": "assets/icon.png",
   "engines": {
     "vscode": "^1.80.0"
   },
   "categories": [
+    "Visualization",
     "Other"
   ],
   "keywords": [
@@ -23,50 +24,57 @@
   "main": "./out/extension.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/adrianstephens/vscode-tasks.git"
+    "url": "https://github.com/adrianstephens/vscode-tasklist.git"
   },
+  "files": [
+    "out/**/*.js",
+    "assets/*",
+    "LICENSE.txt"
+  ],
   "contributes": {
     "configuration": {
-      "title": "Tasks",
+      "title": "Task List",
       "properties": {
-        "taskview.icons": {
+        "tasklist.icons": {
           "type": "object",
           "description": "A mapping of strings to icon names.",
           "default": {
-            "clean": 			"trash",
-            "build": 			"package",
-            "rebuild": 		"package",
-            "test": 			"beaker",
-            "debug": 			"bug",
-            "launch": 		"rocket",
-            "terminal": 	"terminal",
-            "watch": 			"eye",
-            "deploy": 		"cloud-upload",
-            "start": 			"play",
-            "stop": 			"stop",
-            "publish": 		"cloud",
-            "default": 		"gear"
+            "clean": "trash",
+            "build": "package",
+            "rebuild": "package",
+            "test": "beaker",
+            "before": "arrow-left",
+            "after": "arrow-right",
+            "debug": "bug",
+            "launch": "rocket",
+            "terminal": "terminal",
+            "watch": "eye",
+            "deploy": "cloud-upload",
+            "start": "play",
+            "stop": "stop",
+            "publish": "cloud",
+            "default": "gear"
           },
           "additionalProperties": {
             "type": "string",
             "description": "The icon name for the given string key."
           }
         },
-        "taskview.colors": {
+        "tasklist.colors": {
           "type": "object",
           "description": "A mapping of strings to colors.",
           "default": {
-	          "npm": 					"charts.red",
-	          "shell": 				"charts.blue",
-	          "typescript": 	"charts.purple",
-	          "gulp": 				"charts.orange",
-	          "grunt": 				"charts.yellow",
-	          "node": 				"charts.red",
-	          "extensionHost":"charts.blue",
-	          "chrome":				"charts.green",
-	          "msedge":				"charts.purple",
-	          "compound":			"charts.blue",
-	          "default": 			"charts.yellow"
+            "npm": "charts.red",
+            "shell": "charts.blue",
+            "typescript": "charts.purple",
+            "gulp": "charts.orange",
+            "grunt": "charts.yellow",
+            "node": "charts.red",
+            "extensionHost": "charts.blue",
+            "chrome": "charts.green",
+            "msedge": "charts.purple",
+            "compound": "charts.blue",
+            "default": "charts.yellow"
           },
           "additionalProperties": {
             "type": "string",
@@ -133,31 +141,29 @@
           "when": "view == tasks.launchView",
           "group": "navigation"
         }
-
       ],
       "view/item/context": [
         {
           "command": "tasks.stop",
-          "when": "view == tasks.view && viewItem == running",
+          "when": "(view == tasks.view || view == tasks.launchView) && viewItem == running",
           "group": "inline"
         },
         {
           "command": "tasks.edit",
-          "when": "view == tasks.view && viewItem != noedit",
+          "when": "(view == tasks.view || view == tasks.launchView) && viewItem != noedit",
           "group": "inline"
         }
-
       ]
     }
   },
-	"scripts": {
-		"vscode:prepublish": "npm run compile",
-		"compile": "tsc -p ./",
-		"lint": "eslint \"src/**/*.ts\"",
-		"watch": "tsc -watch -p ./",
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "lint": "eslint \"src/**/*.ts\"",
+    "watch": "tsc -watch -p ./",
     "package": "vsce package",
-		"publish": "vsce publish patch"
-	},
+    "publish": "vsce publish patch"
+  },
   "devDependencies": {
     "@types/mocha": "^10.0.9",
     "@types/node": "20.x",
