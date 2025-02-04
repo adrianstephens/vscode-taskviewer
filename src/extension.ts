@@ -78,28 +78,6 @@ function editConfig(name: string, configuration: string, entries: string, matchF
 	}
 }
 
-class Configurations {
-	launches:		LaunchConfiguration[]			= [];
-	compounds: 		CompoundLaunchConfiguration[]	= [];
-	tasks:			TaskConfiguration[]				= [];
-
-	refresh() {
-		this.launches 	= [];
-		this.compounds 	= [];
-		this.tasks 		= [];
-
-		if (vscode.workspace.workspaceFolders) {
-			for (const i of vscode.workspace.workspaceFolders) {
-				const config = vscode.workspace.getConfiguration('launch', i.uri);
-				this.launches.push(...(config.get<LaunchConfiguration[]>('configurations') || []));
-				this.compounds.push(...(config.get<CompoundLaunchConfiguration[]>('compounds') || []));
-
-				const config2 = vscode.workspace.getConfiguration('tasks', i.uri);
-				this.tasks.push(...(config2.get<TaskConfiguration[]>('tasks') || []));
-			}
-		}
-	}
-}
 
 //-----------------------------------------------------------------------------
 // TaskItem
@@ -244,7 +222,10 @@ class TasksShared {
 	private icons:			Record<string, string> = {};
 	private colors:			Record<string, string> = {};
 
-	configs	= new Configurations;
+	launches:		LaunchConfiguration[]			= [];
+	compounds: 		CompoundLaunchConfiguration[]	= [];
+	taskConfigs:	TaskConfiguration[]				= [];
+	tasks?:			Thenable<vscode.Task[]>;
 
 	constructor(context: vscode.ExtensionContext) {
 		context.subscriptions.push(
@@ -309,7 +290,28 @@ class TasksShared {
 		const config	= vscode.workspace.getConfiguration('tasklist');
 		this.icons		= config.icons;
 		this.colors		= config.colors;
-		this.configs.refresh();
+
+		this.launches 		= [];
+		this.compounds		= [];
+		this.taskConfigs	= [];
+
+		if (!this.tasks) {
+			this.tasks 	= vscode.tasks.fetchTasks().then(tasks => {
+				setTimeout(()=> this.tasks = undefined, CACHE_TIMEOUT);
+				return tasks;
+			});
+		}
+
+		if (vscode.workspace.workspaceFolders) {
+			for (const i of vscode.workspace.workspaceFolders) {
+				const config = vscode.workspace.getConfiguration('launch', i.uri);
+				this.launches.push(...(config.get<LaunchConfiguration[]>('configurations') || []));
+				this.compounds.push(...(config.get<CompoundLaunchConfiguration[]>('compounds') || []));
+
+				const config2 = vscode.workspace.getConfiguration('tasks', i.uri);
+				this.taskConfigs.push(...(config2.get<TaskConfiguration[]>('tasks') || []));
+			}
+		}
 	}
 
 }
@@ -384,7 +386,7 @@ class TaskTreeProvider implements vscode.TreeDataProvider<TaskItem> {
 			// sort into groups
 
 			if (this.showTasks) {
-				this.shared.configs.tasks.forEach(i => {
+				this.shared.taskConfigs.forEach(i => {
 					//const group = groups[i.presentation?.group ?? (typeof i.group === 'string' ? i.group : i.group?.kind) ?? ''] ??= [];
 					const group = groups[(typeof i.group === 'string' ? i.group : i.group?.kind) ?? ''] ??= [];
 					group.push(new TaskItemTask(i));
@@ -392,11 +394,11 @@ class TaskTreeProvider implements vscode.TreeDataProvider<TaskItem> {
 			}
 
 			if (this.showLaunches) {
-				this.shared.configs.launches.forEach(i => {
+				this.shared.launches.forEach(i => {
 					const group = groups[i.presentation?.group ?? ''] ??= [];
 					group.push(new TaskItemLaunch(i));
 				});
-				this.shared.configs.compounds.forEach(i => {
+				this.shared.compounds.forEach(i => {
 					const group = groups[i.presentation?.group ?? ''] ??= [];
 					group.push(new TaskItemCompound(i));
 				});

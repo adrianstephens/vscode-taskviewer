@@ -1,4 +1,4 @@
-# Task List
+# Task Viewer
 
 Provides quick access to your workspace tasks and/or launch scripts from the explorer or debug view.
 

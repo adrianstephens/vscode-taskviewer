@@ -1,6 +1,6 @@
 {
-  "name": "tasklist",
-  "displayName": "Task List",
+  "name": "taskviewer",
+  "displayName": "Task Viewer",
   "description": "Quick access to workspace tasks from and launch scripts from explorer sidebar",
   "version": "0.1.0",
   "publisher": "isopodlabs",
