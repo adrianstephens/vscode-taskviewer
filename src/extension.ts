@@ -345,7 +345,7 @@ class TasksShared {
 // TaskTreeProvider
 //-----------------------------------------------------------------------------
 
-function makeTreeItem(item: TaskItem, icon_name: string, icon_color: string) {
+function makeTreeItem(item: TaskItem, icon_name: string, icon_color?: string) {
 	const titem = new vscode.TreeItem(item.name, item.hasChildren() ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
 	if (item.run)
 		titem.command = {
@@ -355,7 +355,7 @@ function makeTreeItem(item: TaskItem, icon_name: string, icon_color: string) {
 		};
 	titem.iconPath	= new vscode.ThemeIcon(
 		icon_name,
-		new vscode.ThemeColor(icon_color)
+		icon_color ? new vscode.ThemeColor(icon_color) : undefined
 	);
 	return titem;
 }
@@ -385,7 +385,7 @@ class TaskTreeProvider implements vscode.TreeDataProvider<TaskItem> {
 			case 'task': {
 				const status = this.shared.getStatus(item.name);
 				const icon	= status?.isActive ? 'sync~spin' : this.shared.getIconName(item.icontype());
-				const color = this.shared.getColorFromType(item.colortype().toLowerCase());
+				const color = status?.isActive ? undefined : this.shared.getColorFromType(item.colortype().toLowerCase());
 
 				const titem = makeTreeItem(item, icon, color);
 
