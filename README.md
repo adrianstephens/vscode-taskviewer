@@ -5,8 +5,10 @@ Provides quick access to your workspace tasks and/or launch scripts from the exp
 
 ## Features
 
-- Task view grouped by task group, with color-coded icons
-- Optional launch scripts included with tasks
+- Tasks grouped by task group
+- Task icons based on task name, with colors based on task type
+- View all tasks, or only configured tasks (found in tasks.json)
+- Launch scripts optionally shown in task view
 - Separate Launch script view in debug pane, grouped by presentation group
 - Task and Launch script execution on click from the explorer view
 - Task and Launch script editing (opens in appropriate tasks.json or launch.json)
@@ -15,7 +17,7 @@ Provides quick access to your workspace tasks and/or launch scripts from the exp
 
 ### Icons
 
-Theme icons are associated with strings found in task or launch script names, and can be customized using the setting taskviewer.icons. The default associations are:
+Theme icons are associated with strings found in task or launch script names, and can be customized using the setting `taskviewer.icons`. The default associations are:
 - clean:			trash			(<img src="assets/icons/trash.png"/>)
 - build: 			package 		(<img src="assets/icons/package.png"/>)
 - rebuild: 			package 		(<img src="assets/icons/package.png"/>)
@@ -26,12 +28,12 @@ Theme icons are associated with strings found in task or launch script names, an
 - watch: 			eye 			(<img src="assets/icons/eye.png"/>)
 - deploy: 			cloud-upload	(<img src="assets/icons/cloud-upload.png"/>)
 - start: 			play 			(<img src="assets/icons/play.png"/>)
-- stop: 			$(debug-stop) 			(<img src="assets/icons/debug-stop.png"/>)
+- stop: 			debug-stop 	    (<img src="assets/icons/debug-stop.png"/>)
 - publish: 			cloud 			(<img src="assets/icons/cloud.png"/>)
 - default: 			gear 			(<img src="assets/icons/gear.png"/>)
 
 ### Colors
-Theme colors are associated with task or launch script types, and can be customized using the setting taskviewer.colors. The default associations are:
+Theme colors are associated with task or launch script types, and can be customized using the setting `taskviewer.colors`. The default associations are:
 ##### Tasks
 - npm: 				<span style="color: red;">chart.red</span>
 - shell: 			<span style="color: blue;">chart.blue</span>

@@ -37,7 +37,7 @@
       "properties": {
         "taskviewer.icons": {
           "type": "object",
-          "description": "A mapping of strings to icon names.",
+          "description": "Theme icon to use when a string is found in a task or launch-script name.",
           "default": {
             "clean": "trash",
             "build": "package",
@@ -62,7 +62,7 @@
         },
         "taskviewer.colors": {
           "type": "object",
-          "description": "A mapping of strings to colors.",
+          "description": "Theme color to use for particular task or launch-script types.",
           "default": {
             "npm": "charts.red",
             "shell": "charts.blue",
@@ -85,42 +85,42 @@
     },
     "commands": [
       {
-        "command": "tasks.refresh",
+        "command": "taskviewer.refresh",
         "title": "Refresh Tasks",
         "icon": "$(refresh)"
       },
       {
-        "command": "tasks.stop",
+        "command": "taskviewer.stop",
         "title": "Stop Task",
         "icon": "$(stop)"
       },
       {
-        "command": "tasks.edit",
+        "command": "taskviewer.edit",
         "title": "Edit Task",
         "icon": "$(edit)"
       },
       {
-        "command": "tasks.showLaunches",
+        "command": "taskviewer.showLaunches",
         "title": "Show Launches",
         "icon": "$(bug)"
       },
       {
-        "command": "tasks.hideLaunches",
+        "command": "taskviewer.hideLaunches",
         "title": "Hide Launches",
         "icon": "$(debug)"
       },
       {
-        "command": "tasks.showConfig",
+        "command": "taskviewer.showConfig",
         "title": "Show Configured Tasks",
         "icon": "$(filter)"
       },
       {
-        "command": "tasks.showAll",
+        "command": "taskviewer.showAll",
         "title": "Show All Tasks",
         "icon": "$(filter-filled)"
       },
       {
-        "command": "tasks.launchRefresh",
+        "command": "taskviewer.launchRefresh",
         "title": "Refresh Tasks",
         "icon": "$(refresh)"
       }
@@ -128,59 +128,63 @@
     "views": {
       "explorer": [
         {
-          "id": "tasks.view",
+          "id": "taskviewer.view",
           "name": "Tasks"
         }
       ],
       "debug": [
         {
-          "id": "tasks.launchView",
+          "id": "taskviewer.launchView",
           "name": "Launches"
         }
       ]
     },
     "menus": {
+      "commandPalette": [
+        {"command": "taskviewer.stop", "when": "false"},
+        {"command": "taskviewer.edit", "when": "false"}
+      ],
       "view/title": [
         {
-          "command": "tasks.refresh",
-          "when": "view == tasks.view",
+          "command": "taskviewer.refresh",
+          "when": "view == taskviewer.view",
           "group": "navigation@3"
         },
         {
-          "command": "tasks.showAll",
-          "when": "view == tasks.view && !taskviewer.all",
+          "command": "taskviewer.showAll",
+          "when": "view == taskviewer.view && !taskviewer.all",
           "group": "navigation@2"
         },
         {
-          "command": "tasks.showConfig",
-          "when": "view == tasks.view && taskviewer.all",
+          "command": "taskviewer.showConfig",
+          "when": "view == taskviewer.view && taskviewer.all",
           "group": "navigation@2"
         },
         {
-          "command": "tasks.showLaunches",
-          "when": "view == tasks.view && !taskviewer.launches",
+          "command": "taskviewer.showLaunches",
+          "when": "view == taskviewer.view && !taskviewer.launches",
           "group": "navigation@1"
         },
         {
-          "command": "tasks.hideLaunches",
-          "when": "view == tasks.view && taskviewer.launches",
+          "command": "taskviewer.hideLaunches",
+          "when": "view == taskviewer.view && taskviewer.launches",
           "group": "navigation@1"
         },
         {
-          "command": "tasks.launchRefresh",
-          "when": "view == tasks.launchView",
+          "command": "taskviewer.launchRefresh",
+          "when": "view == taskviewer.launchView",
           "group": "navigation"
         }
       ],
       "view/item/context": [
         {
-          "command": "tasks.stop",
-          "when": "(view == tasks.view || view == tasks.launchView) && viewItem == running",
+          "command": "taskviewer.stop",
+          "when": "(view == taskviewer.view || view == taskviewer.launchView) && viewItem == running",
           "group": "inline"
         },
         {
-          "command": "tasks.edit",
-          "when": "(view == tasks.view || view == tasks.launchView) && viewItem != noedit",
+          "command": "taskviewer.edit",
+          "when": "(view == taskviewer.view || view == taskviewer.launchView) && viewItem != noedit",
           "group": "inline"
         }
       ]

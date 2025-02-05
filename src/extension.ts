@@ -259,7 +259,7 @@ class TasksShared {
 
 	constructor(context: vscode.ExtensionContext) {
 		context.subscriptions.push(
-			vscode.commands.registerCommand('tasks.stop',	(item: TaskItem) => {
+			vscode.commands.registerCommand('taskviewer.stop',	(item: TaskItem) => {
 				if (item.type === 'task')
 					this.status[item.name]?.execution?.terminate();
 				else if (item.type === 'launch') {
@@ -269,6 +269,7 @@ class TasksShared {
 			}),
 		);
 	
+		this.updateSettings();
 		this.refresh();
 	}
 
@@ -315,12 +316,13 @@ class TasksShared {
 		return name in this.debugStatus;
 	}
 
-	refresh() {
-		this.status		= {};
+	updateSettings() {
 		const config	= vscode.workspace.getConfiguration('taskviewer');
 		this.icons		= config.icons;
 		this.colors		= config.colors;
-
+	}
+	refresh() {
+		this.status		= {};
 		this.launches 		= [];
 		this.compounds		= [];
 		this.taskConfigs	= [];
@@ -347,7 +349,7 @@ function makeTreeItem(item: TaskItem, icon_name: string, icon_color: string) {
 	const titem = new vscode.TreeItem(item.name, item.hasChildren() ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
 	if (item.run)
 		titem.command = {
-			command: 'tasks.run',
+			command: 'taskviewer.run',
 			title: '',
 			arguments: [item]
 		};
@@ -469,36 +471,36 @@ export function activate(context: vscode.ExtensionContext): void {
 	const launchTree	= new TaskTreeProvider(shared, false, true);
 
 	context.subscriptions.push(
-		vscode.window.registerTreeDataProvider('tasks.view', taskTree),
-		vscode.window.registerTreeDataProvider('tasks.launchView', launchTree),
+		vscode.window.registerTreeDataProvider('taskviewer.view', taskTree),
+		vscode.window.registerTreeDataProvider('taskviewer.launchView', launchTree),
 
-		vscode.commands.registerCommand('tasks.refresh', () => {
+		vscode.commands.registerCommand('taskviewer.refresh', () => {
 			shared.refresh();
 			taskTree.refresh();
 		}),
 
-		vscode.commands.registerCommand('tasks.launchRefresh', () => {
+		vscode.commands.registerCommand('taskviewer.launchRefresh', () => {
 			shared.refresh();
 			launchTree.refresh();
 		}),
 
-		vscode.commands.registerCommand('tasks.run',	(item: TaskItem) => item.run!()),
-		vscode.commands.registerCommand('tasks.edit',	(item: TaskItem) => item.edit()),
+		vscode.commands.registerCommand('taskviewer.run',	(item: TaskItem) => item.run!()),
+		vscode.commands.registerCommand('taskviewer.edit',	(item: TaskItem) => item.edit()),
 
-		vscode.commands.registerCommand('tasks.showLaunches', () => {
+		vscode.commands.registerCommand('taskviewer.showLaunches', () => {
 			vscode.commands.executeCommand("setContext", "taskviewer.launches", taskTree.showLaunches = true);
 			taskTree.refresh();
 		}),
-		vscode.commands.registerCommand('tasks.hideLaunches', () => {
+		vscode.commands.registerCommand('taskviewer.hideLaunches', () => {
 			vscode.commands.executeCommand("setContext", "taskviewer.launches", taskTree.showLaunches = false);
 			taskTree.refresh();
 		}),
 
-		vscode.commands.registerCommand('tasks.showAll',	() => {
+		vscode.commands.registerCommand('taskviewer.showAll',	() => {
 			vscode.commands.executeCommand("setContext", "taskviewer.all", taskTree.allTasks = true);
 			taskTree.refresh();
 		}),
-		vscode.commands.registerCommand('tasks.showConfig',	() => {
+		vscode.commands.registerCommand('taskviewer.showConfig',	() => {
 			taskTree.allTasks = true;
 			vscode.commands.executeCommand("setContext", "taskviewer.all", taskTree.allTasks = false);
 			taskTree.refresh();
@@ -529,7 +531,14 @@ export function activate(context: vscode.ExtensionContext): void {
 			shared.stoppedDebug(e);
 			launchTree.refresh();
 		}),
-		//DebugAdapterTracker
+		
+		vscode.workspace.onDidChangeConfiguration(e => {
+			if (e.affectsConfiguration("taskviewer")) {
+				shared.updateSettings();
+				taskTree.refresh();
+				launchTree.refresh();
+			}
+		})
 	);
 
 }
