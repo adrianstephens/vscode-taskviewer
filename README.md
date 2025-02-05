@@ -13,7 +13,7 @@ Provides quick access to your workspace tasks and/or launch scripts from the exp
 - Task and Launch script execution on click from the explorer view
 - Task and Launch script editing (opens in appropriate tasks.json or launch.json)
 - Visual status updates for running, successful, or failed tasks (with exit codes)
-- Stop button for running tasks or active debug sessions (<img src="https://raw.githubusercontent.com/microsoft/vscode-codicons/main/src/icons/stop-circle.svg" width="16" height="16" />)
+- Stop button for running tasks or active debug sessions (<img src="assets/icons/error.png"/>)
 
 ### Icons
 
