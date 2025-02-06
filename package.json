@@ -29,19 +29,6 @@
   "files": [
     "out/**/*.js",
     "assets/icon.png",
-    "assets/icons/error.png",
-    "assets/icons/trash.png",
-    "assets/icons/package.png",
-    "assets/icons/beaker.png",
-    "assets/icons/bug.png",
-    "assets/icons/rocket.png",
-    "assets/icons/terminal.png",
-    "assets/icons/eye.png",
-    "assets/icons/cloud-upload.png",
-    "assets/icons/play.png",
-    "assets/icons/debug-stop.png",
-    "assets/icons/cloud.png",
-    "assets/icons/gear.png",
     "LICENSE.txt"
   ],
   "contributes": {
