@@ -2,7 +2,7 @@
   "name": "taskviewer",
   "displayName": "Task Viewer",
   "description": "Quick access to workspace tasks from and launch scripts from explorer sidebar",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "publisher": "isopodlabs",
   "license": "MIT",
   "icon": "assets/icon.png",
@@ -206,13 +206,9 @@
     "generate-icons": "ts-node scripts/icons.ts node_modules/@vscode/codicons/src/icons assets/icons"
   },
   "devDependencies": {
-    "@types/mocha": "^10.0.9",
     "@types/node": "20.x",
     "@types/vscode": "^1.80.0",
-    "@typescript-eslint/eslint-plugin": "^8.10.0",
-    "@typescript-eslint/parser": "^8.7.0",
-    "@vscode/codicons": "^0.0.36",
-    "sharp": "^0.33.5",
-    "ts-node": "^10.9.2"
+    "eslint": "^9.23.0",
+    "typescript-eslint": "^8.27.0"
   }
 }
