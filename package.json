@@ -2,7 +2,7 @@
   "name": "taskviewer",
   "displayName": "Task Viewer",
   "description": "Quick access to workspace tasks from and launch scripts from explorer sidebar",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "publisher": "isopodlabs",
   "license": "MIT",
   "icon": "assets/icon.png",
