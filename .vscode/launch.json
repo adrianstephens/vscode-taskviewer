@@ -6,7 +6,8 @@
     "configurations": [
         {
             "args": [
-                "--extensionDevelopmentPath=${workspaceFolder}"
+                "--extensionDevelopmentPath=${workspaceFolder}",
+                "/Volumes/DevSSD/dev/packages/packages.code-workspace"
             ],
             "name": "Launch Extension",
             "outFiles": [
