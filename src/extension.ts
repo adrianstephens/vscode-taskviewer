@@ -70,10 +70,15 @@ function editConfig(name: string, configuration: string, entries: string, matchF
 		return editConfig1(ws, name, configuration, matchFields[0]);
 }
 */
+
+function escapeRegex(str: string) {
+	return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Escapes all special chars
+}
+
 function editConfig1(workspace: vscode.WorkspaceFolder, name: string, configuration: string, matchField: string) {
 	const uri = vscode.Uri.joinPath(workspace.uri, `.vscode/${configuration}.json`);
 	vscode.workspace.openTextDocument(uri).then(document => {
-		const match = (new RegExp(`"${matchField}":\\s*"${name}"`, 'g')).exec(document.getText());
+		const match = (new RegExp(`"${matchField}":\\s*"${escapeRegex(name)}"`, 'g')).exec(document.getText());
 		if (match) {
 			const position = document.positionAt(match.index);
 			vscode.window.showTextDocument(document, {selection: new vscode.Range(position, position)});
@@ -149,7 +154,7 @@ class TaskItemTaskConfig extends TaskItemTaskBase {
 		return multi_workspace ? `${configName(this.config)} (${this.workspace.name})` : configName(this.config);
 	}
 
-	edit()		{ editConfig1(this.workspace, this.id, 'tasks', '(?:label|task|script)'); }
+	edit()		{ editConfig1(this.workspace, configName(this.config), 'tasks', '(?:label|task|script)'); }
 
 	icontype()	{ return this.id.toLowerCase(); }
 	colortype()	{ return this.config.type ?? 'compound'; }

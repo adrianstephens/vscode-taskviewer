@@ -7,7 +7,9 @@
         {
             "args": [
                 "--extensionDevelopmentPath=${workspaceFolder}",
-                "/Volumes/DevSSD/dev/packages/packages.code-workspace"
+                //"/Volumes/DevSSD/dev/packages/packages.code-workspace",
+                "--remote=ssh-remote+ubuntu-adrian",
+				"/mnt/e/Github/xdg-desktop-portal/xdg-desktop-portal-gnome"
             ],
             "name": "Launch Extension",
             "outFiles": [
