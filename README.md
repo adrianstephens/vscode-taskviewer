@@ -4,6 +4,9 @@ Provides quick access to your workspace tasks and/or launch scripts from the exp
 
 ![View](https://raw.githubusercontent.com/adrianstephens/vscode-taskviewer/main/assets/recording.gif)
 
+## ☕ Support My Work  
+If you enjoy this extension, consider [buying me a tea](https://coff.ee/adrianstephens) to support future updates!  
+
 ## Features
 
 - Tasks grouped by task group
