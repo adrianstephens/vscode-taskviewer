@@ -2,7 +2,7 @@
   "name": "taskviewer",
   "displayName": "Task Viewer",
   "description": "Quick access to workspace tasks from and launch scripts from explorer sidebar",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "publisher": "isopodlabs",
   "license": "MIT",
   "icon": "assets/icon.png",
@@ -48,6 +48,11 @@
           "description": "Show all (rather than just configured) tasks in the Task Tree.",
           "default": false
         },
+        "taskviewer.groupByWorkspace": {
+          "type": "boolean",
+          "description": "Group tasks by workspace.",
+          "default": false
+        },
         "taskviewer.icons": {
           "type": "object",
           "description": "Theme icon to use when a string is found in a task or launch-script name.",
@@ -66,6 +71,7 @@
             "start": "play",
             "stop": "stop",
             "publish": "cloud",
+            "workspace": "folder",
             "default": "gear"
           },
           "additionalProperties": {
@@ -133,6 +139,16 @@
         "icon": "$(filter-filled)"
       },
       {
+        "command": "taskviewer.groupByWorkspace",
+        "title": "Group by workspace",
+        "icon": "$(file-submodule)"
+      },
+      {
+        "command": "taskviewer.ungroupByWorkspace",
+        "title": "Don't group by workspace",
+        "icon": "$(folder)"
+      },
+      {
         "command": "taskviewer.launchRefresh",
         "title": "Refresh Tasks",
         "icon": "$(refresh)"
@@ -190,6 +206,16 @@
           "group": "navigation@1"
         },
         {
+          "command": "taskviewer.groupByWorkspace",
+          "when": "view == taskviewer.view && taskviewer.multiRoot && !taskviewer.groupByWorkspace",
+          "group": "navigation@1"
+        },
+        {
+          "command": "taskviewer.ungroupByWorkspace",
+          "when": "view == taskviewer.view && taskviewer.multiRoot && taskviewer.groupByWorkspace",
+          "group": "navigation@1"
+        },
+        {
           "command": "taskviewer.launchRefresh",
           "when": "view == taskviewer.launchView",
           "group": "navigation"
@@ -222,6 +248,7 @@
     "@types/node": "20.x",
     "@types/vscode": "^1.80.0",
     "eslint": "^9.23.0",
+    "sharp": "^0.34.3",
     "typescript-eslint": "^8.27.0"
   }
 }

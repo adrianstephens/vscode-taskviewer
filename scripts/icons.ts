@@ -66,7 +66,7 @@ fs.readFile(font, (err, buffer) => {
 const inputDir	= process.argv[2];//path.join(__dirname, 'input'); // Folder containing SVGs
 const outputDir	= process.argv[3];//path.join(__dirname, 'output'); // Folder to save PNGs
 
-console.log(`${inputDir} to ${outputDir}`)
+console.log(`${inputDir} to ${outputDir}`);
 
 // Ensure the output directory exists
 if (!fs.existsSync(outputDir))

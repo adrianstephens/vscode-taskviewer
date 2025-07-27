@@ -7,15 +7,15 @@
         {
             "args": [
                 "--extensionDevelopmentPath=${workspaceFolder}",
-                //"/Volumes/DevSSD/dev/packages/packages.code-workspace",
-                "--remote=ssh-remote+ubuntu-adrian",
-				"/mnt/e/Github/xdg-desktop-portal/xdg-desktop-portal-gnome"
+                "/Volumes/DevSSD/dev/packages/packages.code-workspace",
+                //"--remote=ssh-remote+ubuntu-adrian",
+				//"/mnt/e/Github/xdg-desktop-portal/xdg-desktop-portal-gnome"
             ],
             "name": "Launch Extension",
             "outFiles": [
                 "${workspaceFolder}/out/**/*.js"
             ],
-            "preLaunchTask": "npm: watch",
+            "preLaunchTask": "npm: compile",
             "request": "launch",
             "type": "extensionHost"
         }
