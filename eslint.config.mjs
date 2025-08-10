@@ -11,6 +11,7 @@ export default tslint.config(
             "semi": ["error", "always"], // Add this line to enforce semicolon use
             "@typescript-eslint/no-duplicate-enum-values": "off",
             //"@typescript-eslint/no-misleading-character-class": "off",
+			"@typescript-eslint/class-literal-property-style": "off",
             "@typescript-eslint/no-this-alias": "off",
             "@typescript-eslint/no-unused-vars":  [
                 "warn", {

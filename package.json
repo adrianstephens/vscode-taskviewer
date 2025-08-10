@@ -63,6 +63,8 @@
             "test": "beaker",
             "before": "arrow-left",
             "after": "arrow-right",
+            "input": "arrow-left",
+            "output": "arrow-right",
             "debug": "bug",
             "launch": "rocket",
             "terminal": "terminal",
@@ -83,6 +85,8 @@
           "type": "object",
           "description": "Theme color to use for particular task or launch-script types.",
           "default": {
+            "input": "charts.green",
+            "output": "charts.red",
             "npm": "charts.red",
             "shell": "charts.blue",
             "typescript": "charts.purple",
@@ -152,6 +156,57 @@
         "command": "taskviewer.launchRefresh",
         "title": "Refresh Tasks",
         "icon": "$(refresh)"
+      }
+    ],
+    "taskDefinitions": [
+      {
+        "type": "dependant",
+        "required": [
+          "label"
+        ],
+        "properties": {
+          "command": {
+            "type": "string",
+            "description": "Command to execute"
+          },
+          "task": {
+            "type": "string",
+            "description": "Task to execute"
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Input file patterns (glob patterns supported)"
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Output file patterns"
+          },
+          "options": {
+            "type": "object",
+            "description": "Execution options",
+            "properties": {
+              "cwd": {
+                "type": "string",
+                "description": "Working directory"
+              },
+              "env": {
+                "type": "object",
+                "description": "Environment variables"
+              }
+
+            }
+          },
+          "ignoreErrors": {
+            "type": "boolean",
+            "description": "Don't stop on errors"
+          }
+        }
       }
     ],
     "views": {
@@ -250,5 +305,8 @@
     "eslint": "^9.23.0",
     "sharp": "^0.34.3",
     "typescript-eslint": "^8.27.0"
+  },
+  "dependencies": {
+    "glob": "^11.0.3"
   }
 }

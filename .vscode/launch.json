@@ -11,6 +11,13 @@
                 //"--remote=ssh-remote+ubuntu-adrian",
 				//"/mnt/e/Github/xdg-desktop-portal/xdg-desktop-portal-gnome"
             ],
+			"windows": {
+				"args": [
+					"--extensionDevelopmentPath=${workspaceFolder}",
+					//"D:/dev/packages/packages.code-workspace",
+					"D:/dev/shared",
+				]
+			},
             "name": "Launch Extension",
             "outFiles": [
                 "${workspaceFolder}/out/**/*.js"
