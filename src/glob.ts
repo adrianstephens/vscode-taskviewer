@@ -1,22 +1,12 @@
 import * as path from 'path';
 import * as fs from 'fs';
 
-/*
-export class GlobStarFixer {
-	wildcard: string;
-
-	constructor(glob: string, match: string) {
-		const parts = glob.split('*');
-		this.wildcard = match.slice(parts[0].length, match.length - parts[1].length);
-	}
-	fix(match: string, input: string) {
-		return input.replaceAll('*', this.wildcard);
-	}
-}
-*/
-
 export class GlobFixer {
 	constructor(public matches: Record<string, string>) {}
+	add(key: string, value: string) {
+		this.matches[key] = value;
+		return this;
+	}
 	fix(input: string) {
 		for (const [key, value] of Object.entries(this.matches))
 			input = input.replaceAll(key, value);
@@ -40,65 +30,106 @@ export function fix<T>(fixer: GlobFixer, input: T): T {
 	return input;
 }
 
+export function fileFixer(match: string) {
+	const parsed_match	= path.parse(match);
+	return new GlobFixer({
+		'${file}':						match,
+		'${fileDirname}':				parsed_match.dir,
+		'${fileDirnameBasename}':		path.basename(parsed_match.dir),
+		'${fileBasename}':				parsed_match.base,
+		'${fileBasenameNoExtension}':	parsed_match.name,
+		'${fileExtname}':				parsed_match.ext,
+	});
+}
+
+function globRe(glob: string) {
+	const regex = glob
+		.replace(/[.+^${}()|[\]\\]/g, '\\$&') // Escape regex chars except * and ?
+		.replace(/\*/g, '[^/]*')	// * matches any chars except dir separator
+		.replace(/\*\*/g, '.*')		// ** matches any chars
+		.replace(/\?/g, '.');		// ? matches single char
+
+	return new RegExp(`^${regex}$`);
+}
+
+
 export class Glob {
 	re: RegExp;
 	constructor(public glob: string) {
-		const regex = glob
-		.replace(/[.+^${}()|[\]\\]/g, '\\$&') // Escape regex chars except * and ?
-		.replace(/\*/g, '.*') // * matches any chars
-		.replace(/\?/g, '.'); // ? matches single char
-
-		this.re = new RegExp(`^${regex}$`);
+		this.re = globRe(glob);
 	}
 	test(match: string) {
 		return this.re.test(match);
 	}
-	fixer(match: string) {
-		const parsed_glob	= path.parse(this.glob);
-		const parsed_match	= path.parse(match);
+	star(match: string) {
 		const parts			= this.glob.split('*');
-
-		return new GlobFixer({
-			'${*}':		match.slice(parts[0].length, match.length - parts[1].length),
-			'${file}':	match,
-
-			...(parsed_glob.dir === '*'			? {'${fileDirname}':				parsed_match.dir} : undefined),
-			...(parsed_glob.dir.endsWith('/*')	? {'${fileDirnameBasename}':		path.basename(parsed_match.dir)} : undefined),
-			...(parsed_glob.base === '*.*'		? {'${fileBasename}':				parsed_match.base} : undefined),
-			...(parsed_glob.name === '*'		? {'${fileBasenameNoExtension}':	parsed_match.name} : undefined),
-			...(parsed_glob.ext === '*'			? {'${fileExtname}':				parsed_match.ext} : undefined),
-		});
+		return match.slice(parts[0].length, match.length - parts[1].length);
 	}
-//	star_fixer(match: string) {
-//		return new GlobStarFixer(this.glob, match);
-//	}
 }
 
 export function isWild(glob: string) {
 	return glob.includes('*') || glob.includes('?');
 }
 
-export async function expandFilePatterns(patterns: string[], cwd: string, output: (message: string) => void): Promise<string[]> {
+async function getDirs(dir: string, glob: RegExp): Promise<string[]> {
+	const star	= dir.indexOf('*');
+
+	if (star >= 0) {
+		const startDir 	= dir.lastIndexOf(path.sep, star);
+		const endDir	= dir.indexOf(path.sep, star);
+		const dirDone	= dir.substring(0, startDir);
+		const dirWild	= dir.substring(startDir + 1, endDir >= 0 ? endDir : undefined);
+		const dirRest	= endDir >= 0 ? dir.substring(endDir + 1) : '';
+
+		const entries	= await fs.promises.readdir(dirDone, { withFileTypes: true }).then(entries =>
+			entries.filter(i => i.isDirectory())
+		);
+
+		if (dirWild === '**') {
+			return (await Promise.all(entries.map(async i => [
+				...await getDirs(path.join(i.parentPath, i.name, '**', dirRest), glob),
+				...await getDirs(path.join(i.parentPath, i.name, dirRest), glob)
+			]))).flat();
+
+		} else {
+			const dirGlob	= globRe(dirWild);
+			return (await Promise.all(entries.filter(i => dirGlob.test(i.name))
+				.map(i => getDirs(path.join(dirDone, i.name, dirRest), glob))
+			)).flat();
+		}
+
+	} else {
+		try {
+			const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+			return entries
+				.filter(i => !i.isDirectory() && glob.test(i.name))
+				.map(i => path.join(i.parentPath, i.name));
+
+		} catch (error) {
+			console.log(`Warning: Cannot read directory ${dir}: ${error}`);
+			return [];
+		}
+	}
+}
+
+export async function expandFilePatterns(patterns: string[], cwd: string): Promise<string[]> {
+	const files = (await Promise.all(patterns.map(async i => {
+		const pattern = path.resolve(cwd, i);
+		return isWild(i)
+			? await getDirs(path.dirname(pattern), globRe(path.basename(pattern)))
+			: pattern;
+	}))).flat();
+/*
 	const files: string[] = [];
-	
+
 	for (const i of patterns) {
 		const pattern = path.resolve(cwd, i);
 		if (isWild(i)) {
-			const dir	= path.dirname(pattern);
-			const glob	= new Glob(path.basename(pattern));
-			try {
-				const entries = fs.readdirSync(dir, { withFileTypes: true });
-				files.push(...entries
-					.filter(dirent => !dirent.isDirectory() && glob.test(dirent.name))
-					.map(dirent => path.join(dirent.parentPath, dirent.name))
-				);
-			} catch (error) {
-				output(`Warning: Cannot read directory ${dir}: ${error}\r\n`);
-			}
+			files.push(...await getDirs(path.dirname(pattern), globRe(path.basename(pattern))));
 		} else {
 			files.push(pattern);
 		}
 	}
-
+*/
 	return [...new Set(files)]; // Remove duplicates
 }

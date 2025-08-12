@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
-import {TasksShared, TaskTreeProvider, TaskItem} from './tasktree';
-import { DependantTaskProvider } from './dependants';
+import { TasksShared, TaskTreeProvider, TaskItem } from './tasktree';
+import { MakeTaskProvider } from './taskmake';
 
-export let taskProvider: DependantTaskProvider;
+export let taskProvider: MakeTaskProvider;
 
 export function taskId(task: vscode.Task) {
 	return typeof task.scope === 'object' && task.scope?.name ? `${task.scope.name}.${task.name}` : task.name;
@@ -13,13 +13,26 @@ export function taskWorkspace(task: vscode.Task) {
 		: undefined;
 }
 
-
 //-----------------------------------------------------------------------------
 // entry
 //-----------------------------------------------------------------------------
 
 export function activate(context: vscode.ExtensionContext): void {
-	taskProvider	= new DependantTaskProvider(context);
+	// Monkey patch fs.promises.stat to trace calls
+	/*
+	const originalStat = fs.promises.stat;
+	(fs.promises as any).stat = function(path: fs.PathLike) {
+		console.log('fs.promises.stat called for:', path);
+		console.log('Stack:', new Error().stack);
+		return originalStat.call(this, path);
+	};
+
+	// Add global unhandled rejection handler
+	process.on('unhandledRejection', (reason, promise) => {
+		console.error('Unhandled Promise Rejection:', reason);
+	});
+*/
+	taskProvider		= new MakeTaskProvider(context);
 
 	const shared		= new TasksShared(context);
 	const taskTree		= new TaskTreeProvider(shared, true, false);
@@ -42,11 +55,10 @@ export function activate(context: vscode.ExtensionContext): void {
 
 	setContext('multiRoot',	(vscode.workspace.workspaceFolders?.length ?? 0) > 1);
 
-
 	context.subscriptions.push(
 		vscode.window.registerTreeDataProvider('taskviewer.view', taskTree),
 		vscode.window.registerTreeDataProvider('taskviewer.launchView', launchTree),
-		vscode.tasks.registerTaskProvider('dependant', taskProvider),
+		vscode.tasks.registerTaskProvider('taskmake', taskProvider),
 
 		vscode.commands.registerCommand('taskviewer.refresh', () => {
 			shared.refresh();

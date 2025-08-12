@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import {isDependant} from './dependants';
+import {isTaskMake} from './taskmake';
 import {taskProvider, taskId, taskWorkspace} from './extension';
 
 //-----------------------------------------------------------------------------
@@ -255,7 +255,8 @@ function itemId(name: string, ws?: vscode.WorkspaceFolder) {
 }
 
 function configName(config: TaskConfiguration) {
-	return config.label ?? config.script ?? config.task ?? '';
+	return config.label ?? config.script ?? config.task ?? config.command ?? '';
+//	return config.label ?? `${config.type}: ${config.script ?? config.task ?? config.command}`;
 }
 
 function configId(config: TaskConfiguration, ws?: vscode.WorkspaceFolder) {
@@ -353,7 +354,7 @@ abstract class TaskItemTaskBase extends TaskItem {
 		});
 	}
 	canEdit()	{ return true; }
-	edit()		{ editConfig(this.workspace, this.name, 'tasks', '(?:label|task|script)'); }
+	edit()		{ editConfig(this.workspace, this.name, 'tasks', '(?:label|task|script|command)'); }
 }
 
 //task item from tasks.json
@@ -384,7 +385,7 @@ class TaskItemTaskConfig extends TaskItemTaskBase {
 	}
 	hasChildren() {
 		return !!this.config.dependsOn
-			|| (isDependant(this.config) && !!(this.config.inputs?.length || this.config.outputs?.length));
+			|| (isTaskMake(this.config) && !!(this.config.inputs?.length || this.config.outputs?.length));
 	}
 	children(tree: TaskTreeProvider)	{
 		const children: TaskItem[] = [];
@@ -395,7 +396,7 @@ class TaskItemTaskConfig extends TaskItemTaskBase {
 				children.push(new TaskItemBefore(this.config.dependsOn, this.workspace));
 		}
 
-		if (isDependant(this.config)) {
+		if (isTaskMake(this.config)) {
 			if (this.config.inputs)
 				children.push(...this.config.inputs.map(input => new TaskItemInput(tree, input)));
 			if (this.config.outputs)
@@ -467,8 +468,9 @@ class TaskItemInput extends TaskItemTaskBase {
 		return this.task === null ? this.name : `${this.name} (${this.task?.name ?? 'searching...'})`;
 	}
 	run()		{
+		const output = (message: string) => console.log(message);
 		taskProvider.getTasksAsync().then(() =>
-			taskProvider.getDepends([this.name]).forEach(task => vscode.tasks.executeTask(task))
+			taskProvider.getDepends([this.name], [], taskWorkspace(this.task!)?.uri.fsPath ?? '').forEach(task => task.run(output))
 		);
 	}
 	canEdit(): boolean {
@@ -507,7 +509,7 @@ class TaskItemLaunch extends TaskItem {
 	get group()		{ return this.config.presentation?.group ?? ''; }
 
 	canEdit()		{ return true; }
-	edit() 			{ editConfig(this.workspace, configName(this.config), 'launch', 'name'); }
+	edit() 			{ editConfig(this.workspace, this.config.name, 'launch', 'name'); }
 	run() 			{ vscode.debug.startDebugging(this.workspace, this.config); }
 	hasChildren()	{ return !!(this.config.preLaunchTask || this.config.postDebugTask); }
 	children()	{
@@ -611,7 +613,7 @@ export class TaskTreeProvider implements vscode.TreeDataProvider<TaskItem> {
 
 	async getChildren(item?: TaskItem): Promise<TaskItem[]> {
 		if (!item) {
-			const tasks:	Record<string, vscode.Task>	= this.showAll ? (await taskProvider.getTasksAsync()).byId : {};
+			const tasks:	Record<string, vscode.Task>	= this.showAll ? {...(await taskProvider.getTasksAsync()).byId} : {};
 
 			if (this.groupByWorkspace) {
 				return this.shared.workspaces.map(ws => {

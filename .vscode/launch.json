@@ -16,6 +16,7 @@
 					"--extensionDevelopmentPath=${workspaceFolder}",
 					//"D:/dev/packages/packages.code-workspace",
 					"D:/dev/shared",
+					//"D:/dev/vscode_ext/registry",
 				]
 			},
             "name": "Launch Extension",

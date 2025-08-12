@@ -1,7 +1,7 @@
 {
-  "name": "taskmake",
-  "displayName": "TaskMake (and Viewer)",
-  "description": " Make-like incremental builds for VS Code tasks and Quick access to workspace tasks from and launch scripts from explorer sidebar",
+  "name": "taskviewer",
+  "displayName": "Task Viewer",
+  "description": "Quick access to workspace tasks from and launch scripts from explorer sidebar",
   "version": "0.5.1",
   "publisher": "isopodlabs",
   "license": "MIT",
