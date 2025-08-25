@@ -9,6 +9,7 @@
 	  "outDir": "out",
 	  "sourceMap": true,
 	  "strict": true,
+	  "declaration": true
 	},
 	"include": [
 	  "src/extension.ts"

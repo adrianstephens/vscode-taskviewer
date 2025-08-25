@@ -1,40 +1,13 @@
 import * as vscode from 'vscode';
-import { TasksShared, TaskTreeProvider, TaskItem } from './tasktree';
-import { MakeTaskProvider } from './taskmake';
-
-export let taskProvider: MakeTaskProvider;
-
-export function taskId(task: vscode.Task) {
-	return typeof task.scope === 'object' && task.scope?.name ? `${task.scope.name}.${task.name}` : task.name;
-}
-export function taskWorkspace(task: vscode.Task) {
-	return typeof(task.scope) === 'object' ? task.scope
-		: task.scope === vscode.TaskScope.Workspace ? vscode.workspace.workspaceFolders?.[0]
-		: undefined;
-}
+import { TasksShared, TaskTreeProvider, Item, taskId } from './tasktree';
+export { CustomItem } from './tasktree';
 
 //-----------------------------------------------------------------------------
 // entry
 //-----------------------------------------------------------------------------
 
-export function activate(context: vscode.ExtensionContext): void {
-	// Monkey patch fs.promises.stat to trace calls
-	/*
-	const originalStat = fs.promises.stat;
-	(fs.promises as any).stat = function(path: fs.PathLike) {
-		console.log('fs.promises.stat called for:', path);
-		console.log('Stack:', new Error().stack);
-		return originalStat.call(this, path);
-	};
-
-	// Add global unhandled rejection handler
-	process.on('unhandledRejection', (reason, promise) => {
-		console.error('Unhandled Promise Rejection:', reason);
-	});
-*/
-	taskProvider		= new MakeTaskProvider(context);
-
-	const shared		= new TasksShared(context);
+export function activate(context: vscode.ExtensionContext) {
+	const shared		= new TasksShared();
 	const taskTree		= new TaskTreeProvider(shared, true, false);
 	const launchTree	= new TaskTreeProvider(shared, false, true);
 
@@ -49,8 +22,8 @@ export function activate(context: vscode.ExtensionContext): void {
 		config.update(name, value);
 	};
 
-	setContext('showAll',		config.showAll);
-	setContext('showLaunches',	config.showLaunches);
+	setContext('showAll',			config.showAll);
+	setContext('showLaunches',		config.showLaunches);
 	setContext('groupByWorkspace',	config.groupByWorkspace);
 
 	setContext('multiRoot',	(vscode.workspace.workspaceFolders?.length ?? 0) > 1);
@@ -58,22 +31,21 @@ export function activate(context: vscode.ExtensionContext): void {
 	context.subscriptions.push(
 		vscode.window.registerTreeDataProvider('taskviewer.view', taskTree),
 		vscode.window.registerTreeDataProvider('taskviewer.launchView', launchTree),
-		vscode.tasks.registerTaskProvider('taskmake', taskProvider),
+		vscode.window.registerFileDecorationProvider(shared),
 
 		vscode.commands.registerCommand('taskviewer.refresh', () => {
 			shared.refresh();
-			taskTree.refresh();
+			taskTree.fullRefresh();
 		}),
 
 		vscode.commands.registerCommand('taskviewer.launchRefresh', () => {
 			shared.refresh();
-			launchTree.refresh();
+			launchTree.fullRefresh();
 		}),
 
-		vscode.commands.registerCommand('taskviewer.run',	(item: TaskItem) => 
-			item.run!()),
-		vscode.commands.registerCommand('taskviewer.edit',	(item: TaskItem) => 
-			item.edit()),
+		vscode.commands.registerCommand('taskviewer.run',	(item: Item) => item.run()),
+		vscode.commands.registerCommand('taskviewer.edit',	(item: Item) => item.edit()),
+		vscode.commands.registerCommand('taskviewer.stop',	(item: Item) => shared.stop(item)),
 
 		vscode.commands.registerCommand('taskviewer.showLaunches',	() => setConfig('showLaunches', true)),
 		vscode.commands.registerCommand('taskviewer.hideLaunches',	() => setConfig('showLaunches', false)),
@@ -91,7 +63,6 @@ export function activate(context: vscode.ExtensionContext): void {
 				launchTree.refresh();
 			}
 		}),
-
 		vscode.tasks.onDidEndTaskProcess(e => {
 			if (e.execution.task) {
 				shared.stoppedTask(taskId(e.execution.task), e.exitCode);
@@ -103,12 +74,11 @@ export function activate(context: vscode.ExtensionContext): void {
 			shared.startedDebug(e);
 			launchTree.refresh();
 		}),
-
 		vscode.debug.onDidTerminateDebugSession(e => {
 			shared.stoppedDebug(e);
 			launchTree.refresh();
 		}),
-		
+
 		vscode.workspace.onDidChangeConfiguration(e => {
 			if (e.affectsConfiguration("taskviewer")) {
 				shared.updateSettings();
@@ -118,6 +88,8 @@ export function activate(context: vscode.ExtensionContext): void {
 		}),
 	);
 
+	return shared;
 }
 
 //export function deactivate(): void {}
+export type exports = ReturnType<typeof activate>;

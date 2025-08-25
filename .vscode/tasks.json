@@ -3,62 +3,71 @@
 {
 	"version": "2.0.0",
 	"tasks": [
-        {
-            "label": "npm: compile",
-            "type": "npm",
-            "script": "compile",
-            "isBackground": false,
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "problemMatcher": "$tsc-watch"
-        },
-        {
-            "label": "npm: watch",
+		{
+			"label": "npm: compile",
+			"type": "npm",
+			"script": "compile",
+			"isBackground": false,
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"problemMatcher": "$tsc-watch"
+		},
+		{
+			"label": "npm: watch",
 			"type": "shell",
 			"group": "build",
 			"command": "tsc -watch -p ./",
 			"problemMatcher": "$tsc-watch",
 			"isBackground": true
 		},
-        {
-            "type": "shell",
-            "label": "prepublish",
-            "command": "git add .; if [ '${input:version}' != 'none' ]; then npm version ${input:version} --force; fi",
-            "windows": {
-                "command": "git add . & if not ${input:version}==none npm version ${input:version} --force",
-            },
-            "problemMatcher": [],
-            "dependsOn": "npm: compile"
-        },
-        {
-            "type": "shell",
-            "label": "PUBLISH",
-            "command": "vsce publish",
-            "problemMatcher": [],
-            "dependsOn": "prepublish"
-        },
-        {
-            "type": "shell",
-            "label": "PACKAGE",
-            "command": "vsce package",
-            "problemMatcher": []
-        },
-        {
-            "label": "install",
-            "type": "shell",
-            "command": "code --install-extension ${workspaceFolder}/*.vsix",
-            "problemMatcher": []
-        }
+		{
+			"type": "shell",
+			"label": "prepublish",
+			"command": "git add .; if [ '${input:version}' != 'none' ]; then npm version ${input:version} --force; fi",
+			"windows": {
+				"command": "git add . & if not ${input:version}==none npm version ${input:version} --force"
+			},
+			"problemMatcher": [],
+			"dependsOn": "npm: compile"
+		},
+		{
+			"type": "shell",
+			"label": "PUBLISH",
+			"command": "vsce publish",
+			"problemMatcher": [],
+			"dependsOn": "prepublish"
+		},
+		{
+			"type": "shell",
+			"label": "PACKAGE",
+			"command": "vsce package",
+			"problemMatcher": []
+		},
+		{
+			"label": "install",
+			"type": "shell",
+			"command": "code --install-extension $(node -p \"require('./package.json').name + '-' + require('./package.json').version + '.vsix'\")",
+			"windows": {
+				"command": "for /f \"usebackq delims=\" %G in (`node -p \"require('./package.json').name + '-' + require('./package.json').version + '.vsix'\"`) do code --install-extension \"%G\""
+			},
+			"problemMatcher": [],
+			"dependsOn": "PACKAGE"
+		}
 	],
-    "inputs": [
-        {
-            "id": "version",
-            "description": "Version bump:",
-            "type": "pickString",
-            "options": ["none", "patch", "minor", "major"],
-            "default": "none"
-        },
-    ]
+	"inputs": [
+		{
+			"id": "version",
+			"description": "Version bump:",
+			"type": "pickString",
+			"options": [
+				"none",
+				"patch",
+				"minor",
+				"major"
+			],
+			"default": "none"
+		}
+	]
 }

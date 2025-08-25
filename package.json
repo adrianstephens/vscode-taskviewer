@@ -1,329 +1,272 @@
 {
-  "name": "taskmake",
-  "displayName": "TaskMake (and Viewer)",
-  "description": " Make-like incremental builds for VS Code tasks and Quick access to workspace tasks from and launch scripts from explorer sidebar",
-  "version": "0.5.1",
-  "publisher": "isopodlabs",
-  "license": "MIT",
-  "icon": "assets/icon.png",
-  "engines": {
-    "vscode": "^1.80.0"
-  },
-  "categories": [
-    "Visualization",
-    "Other"
-  ],
-  "keywords": [
-    "tasks",
-    "task runner",
-    "workspace",
-    "productivity",
-    "build"
-  ],
-  "extensionKind": [
-    "ui"
-  ],
-  "activationEvents": [],
-  "main": "./out/extension.js",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/adrianstephens/vscode-taskviewer.git"
-  },
-  "files": [
-    "out/**/*.js",
-    "assets/icon.png",
-    "LICENSE.txt"
-  ],
-  "contributes": {
-    "configuration": {
-      "title": "Task List",
-      "properties": {
-        "taskviewer.showLaunches": {
-          "type": "boolean",
-          "description": "Show launches in Task Tree",
-          "default": false
-        },
-        "taskviewer.showAll": {
-          "type": "boolean",
-          "description": "Show all (rather than just configured) tasks in the Task Tree.",
-          "default": false
-        },
-        "taskviewer.groupByWorkspace": {
-          "type": "boolean",
-          "description": "Group tasks by workspace.",
-          "default": false
-        },
-        "taskviewer.icons": {
-          "type": "object",
-          "description": "Theme icon to use when a string is found in a task or launch-script name.",
-          "default": {
-            "clean": "trash",
-            "build": "package",
-            "rebuild": "package",
-            "test": "beaker",
-            "before": "arrow-left",
-            "after": "arrow-right",
-            "input": "arrow-left",
-            "output": "arrow-right",
-            "debug": "bug",
-            "launch": "rocket",
-            "terminal": "terminal",
-            "watch": "eye",
-            "deploy": "cloud-upload",
-            "start": "play",
-            "stop": "stop",
-            "publish": "cloud",
-            "workspace": "folder",
-            "default": "gear"
-          },
-          "additionalProperties": {
-            "type": "string",
-            "description": "The icon name for the given string key."
-          }
-        },
-        "taskviewer.colors": {
-          "type": "object",
-          "description": "Theme color to use for particular task or launch-script types.",
-          "default": {
-            "input": "charts.green",
-            "output": "charts.red",
-            "npm": "charts.red",
-            "shell": "charts.blue",
-            "typescript": "charts.purple",
-            "gulp": "charts.orange",
-            "grunt": "charts.yellow",
-            "node": "charts.red",
-            "extensionHost": "charts.blue",
-            "chrome": "charts.green",
-            "msedge": "charts.purple",
-            "compound": "charts.blue",
-            "default": "charts.yellow"
-          },
-          "additionalProperties": {
-            "type": "string",
-            "description": "The icon color for the given string key."
-          }
-        }
-      }
-    },
-    "commands": [
-      {
-        "command": "taskviewer.refresh",
-        "title": "Refresh Tasks",
-        "icon": "$(refresh)"
-      },
-      {
-        "command": "taskviewer.stop",
-        "title": "Stop Task",
-        "icon": "$(stop)"
-      },
-      {
-        "command": "taskviewer.edit",
-        "title": "Edit Task",
-        "icon": "$(edit)"
-      },
-      {
-        "command": "taskviewer.showLaunches",
-        "title": "Show Launches",
-        "icon": "$(bug)"
-      },
-      {
-        "command": "taskviewer.hideLaunches",
-        "title": "Hide Launches",
-        "icon": "$(debug)"
-      },
-      {
-        "command": "taskviewer.showConfig",
-        "title": "Show Configured Tasks",
-        "icon": "$(filter)"
-      },
-      {
-        "command": "taskviewer.showAll",
-        "title": "Show All Tasks",
-        "icon": "$(filter-filled)"
-      },
-      {
-        "command": "taskviewer.groupByWorkspace",
-        "title": "Group by workspace",
-        "icon": "$(file-submodule)"
-      },
-      {
-        "command": "taskviewer.ungroupByWorkspace",
-        "title": "Don't group by workspace",
-        "icon": "$(folder)"
-      },
-      {
-        "command": "taskviewer.launchRefresh",
-        "title": "Refresh Tasks",
-        "icon": "$(refresh)"
-      }
-    ],
-    "taskDefinitions": [
-      {
-        "type": "taskmake",
-        "properties": {
-          "command": {
-            "type": "string",
-            "description": "Command to execute"
-          },
-          "process": {
-            "type": "string",
-            "description": "Command to execute"
-          },
-		  "args": {
-			"type": "array",
-			"items": {
-				"type": "string"
+	"name": "taskviewer",
+	"displayName": "Task Viewer",
+	"description": "Quick access to workspace tasks from and launch scripts from explorer sidebar",
+	"version": "1.0.0",
+	"publisher": "isopodlabs",
+	"license": "MIT",
+	"icon": "assets/icon.png",
+	"engines": {
+		"vscode": "^1.80.0"
+	},
+	"categories": [
+		"Visualization",
+		"Other"
+	],
+	"keywords": [
+		"tasks",
+		"task runner",
+		"workspace",
+		"productivity",
+		"build"
+	],
+	"extensionKind": [
+		"ui"
+	],
+	"activationEvents": [],
+	"main": "./out/extension.js",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/adrianstephens/vscode-taskviewer.git"
+	},
+	"files": [
+		"out/**/*.js",
+		"out/extension.d.ts",
+		"assets/icon.png",
+		"README.md",
+		"LICENSE.txt"
+	],
+	"contributes": {
+		"configuration": {
+			"title": "Task List",
+			"properties": {
+				"taskviewer.showLaunches": {
+					"type": "boolean",
+					"description": "Show launches in Task Tree",
+					"default": false
+				},
+				"taskviewer.showAll": {
+					"type": "boolean",
+					"description": "Show all (rather than just configured) tasks in the Task Tree.",
+					"default": false
+				},
+				"taskviewer.groupByWorkspace": {
+					"type": "boolean",
+					"description": "Group tasks by workspace.",
+					"default": false
+				},
+				"taskviewer.icons": {
+					"type": "object",
+					"description": "Theme icon to use when a string is found in a task or launch-script name.",
+					"default": {
+						"clean": "trash",
+						"build": "package",
+						"rebuild": "package",
+						"test": "beaker",
+						"before": "arrow-left",
+						"after": "arrow-right",
+						"input": "arrow-left",
+						"output": "arrow-right",
+						"debug": "bug",
+						"launch": "rocket",
+						"terminal": "terminal",
+						"watch": "eye",
+						"deploy": "cloud-upload",
+						"start": "play",
+						"stop": "stop",
+						"publish": "cloud",
+						"workspace": "folder",
+						"default": "gear"
+					},
+					"additionalProperties": {
+						"type": "string",
+						"description": "The icon name for the given string key."
+					}
+				},
+				"taskviewer.colors": {
+					"type": "object",
+					"description": "Theme color to use for particular task or launch-script types.",
+					"default": {
+						"input": "charts.green",
+						"output": "charts.red",
+						"npm": "charts.red",
+						"shell": "charts.blue",
+						"typescript": "charts.purple",
+						"gulp": "charts.orange",
+						"grunt": "charts.yellow",
+						"node": "charts.red",
+						"extensionHost": "charts.blue",
+						"chrome": "charts.green",
+						"msedge": "charts.purple",
+						"compound": "charts.blue",
+						"default": "charts.yellow"
+					},
+					"additionalProperties": {
+						"type": "string",
+						"description": "The icon color for the given string key."
+					}
+				}
+			}
+		},
+		"commands": [
+			{
+				"command": "taskviewer.refresh",
+				"title": "Refresh Tasks",
+				"icon": "$(refresh)"
 			},
-			"description": "Command arguments"
-		  },
-          "task": {
-            "type": "string",
-            "description": "Task to execute"
-          },
-          "inputs": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Input file patterns (glob patterns supported)"
-          },
-          "outputs": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Output file patterns"
-          },
-          "options": {
-            "type": "object",
-            "description": "Execution options",
-            "properties": {
-              "cwd": {
-                "type": "string",
-                "description": "Working directory"
-              },
-              "env": {
-                "type": "object",
-                "description": "Environment variables"
-              }
-
-            }
-          },
-          "ignoreErrors": {
-            "type": "boolean",
-            "description": "Don't stop on errors"
-          },
-          "dependsOn": {
-            "type": "array",
-			"items": {
-				"type": "string"
+			{
+				"command": "taskviewer.run",
+				"title": "Run Task",
+				"icon": "$(play)"
 			},
-            "description": "Don't stop on errors"
-          }
-        }
-      }
-    ],
-    "views": {
-      "explorer": [
-        {
-          "id": "taskviewer.view",
-          "name": "Tasks",
-		  "icon": "$(checklist)"
-        }
-      ],
-      "debug": [
-        {
-          "id": "taskviewer.launchView",
-          "name": "Launches",
-		  "icon": "$(debug)"
-        }
-      ]
-    },
-    "menus": {
-      "commandPalette": [
-        {
-          "command": "taskviewer.stop",
-          "when": "false"
-        },
-        {
-          "command": "taskviewer.edit",
-          "when": "false"
-        }
-      ],
-      "view/title": [
-        {
-          "command": "taskviewer.refresh",
-          "when": "view == taskviewer.view",
-          "group": "navigation@3"
-        },
-        {
-          "command": "taskviewer.showAll",
-          "when": "view == taskviewer.view && !taskviewer.showAll",
-          "group": "navigation@2"
-        },
-        {
-          "command": "taskviewer.showConfig",
-          "when": "view == taskviewer.view && taskviewer.showAll",
-          "group": "navigation@2"
-        },
-        {
-          "command": "taskviewer.showLaunches",
-          "when": "view == taskviewer.view && !taskviewer.showLaunches",
-          "group": "navigation@1"
-        },
-        {
-          "command": "taskviewer.hideLaunches",
-          "when": "view == taskviewer.view && taskviewer.showLaunches",
-          "group": "navigation@1"
-        },
-        {
-          "command": "taskviewer.groupByWorkspace",
-          "when": "view == taskviewer.view && taskviewer.multiRoot && !taskviewer.groupByWorkspace",
-          "group": "navigation@1"
-        },
-        {
-          "command": "taskviewer.ungroupByWorkspace",
-          "when": "view == taskviewer.view && taskviewer.multiRoot && taskviewer.groupByWorkspace",
-          "group": "navigation@1"
-        },
-        {
-          "command": "taskviewer.launchRefresh",
-          "when": "view == taskviewer.launchView",
-          "group": "navigation"
-        }
-      ],
-      "view/item/context": [
-        {
-          "command": "taskviewer.stop",
-          "when": "(view == taskviewer.view || view == taskviewer.launchView) && viewItem == running",
-          "group": "inline"
-        },
-        {
-          "command": "taskviewer.edit",
-          "when": "(view == taskviewer.view || view == taskviewer.launchView) && viewItem != noedit",
-          "group": "inline"
-        }
-      ]
-    }
-  },
-  "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "lint": "eslint \"src/**/*.ts\"",
-    "watch": "tsc -watch -p ./",
-    "package": "vsce package",
-    "publish": "vsce publish patch",
-    "generate-icons": "ts-node scripts/icons.ts node_modules/@vscode/codicons/src/icons assets/icons"
-  },
-  "devDependencies": {
-    "@types/node": "20.x",
-    "@types/vscode": "^1.80.0",
-    "eslint": "^9.23.0",
-    "sharp": "^0.34.3",
-    "typescript-eslint": "^8.27.0"
-  },
-  "dependencies": {
-    "glob": "^11.0.3"
-  }
+			{
+				"command": "taskviewer.stop",
+				"title": "Stop Task",
+				"icon": "$(stop)"
+			},
+			{
+				"command": "taskviewer.edit",
+				"title": "Edit Task",
+				"icon": "$(edit)"
+			},
+			{
+				"command": "taskviewer.showLaunches",
+				"title": "Show Launches",
+				"icon": "$(bug)"
+			},
+			{
+				"command": "taskviewer.hideLaunches",
+				"title": "Hide Launches",
+				"icon": "$(debug)"
+			},
+			{
+				"command": "taskviewer.showConfig",
+				"title": "Show Configured Tasks",
+				"icon": "$(filter)"
+			},
+			{
+				"command": "taskviewer.showAll",
+				"title": "Show All Tasks",
+				"icon": "$(filter-filled)"
+			},
+			{
+				"command": "taskviewer.groupByWorkspace",
+				"title": "Group by workspace",
+				"icon": "$(file-submodule)"
+			},
+			{
+				"command": "taskviewer.ungroupByWorkspace",
+				"title": "Don't group by workspace",
+				"icon": "$(folder)"
+			},
+			{
+				"command": "taskviewer.launchRefresh",
+				"title": "Refresh Tasks",
+				"icon": "$(refresh)"
+			}
+		],
+		"views": {
+			"explorer": [
+				{
+					"id": "taskviewer.view",
+					"name": "Tasks",
+					"icon": "$(checklist)"
+				}
+			],
+			"debug": [
+				{
+					"id": "taskviewer.launchView",
+					"name": "Launches",
+					"icon": "$(debug)"
+				}
+			]
+		},
+		"menus": {
+			"commandPalette": [
+				{
+					"command": "taskviewer.stop",
+					"when": "false"
+				},
+				{
+					"command": "taskviewer.edit",
+					"when": "false"
+				}
+			],
+			"view/title": [
+				{
+					"command": "taskviewer.refresh",
+					"when": "view == taskviewer.view",
+					"group": "navigation@3"
+				},
+				{
+					"command": "taskviewer.showAll",
+					"when": "view == taskviewer.view && !taskviewer.showAll",
+					"group": "navigation@2"
+				},
+				{
+					"command": "taskviewer.showConfig",
+					"when": "view == taskviewer.view && taskviewer.showAll",
+					"group": "navigation@2"
+				},
+				{
+					"command": "taskviewer.showLaunches",
+					"when": "view == taskviewer.view && !taskviewer.showLaunches",
+					"group": "navigation@1"
+				},
+				{
+					"command": "taskviewer.hideLaunches",
+					"when": "view == taskviewer.view && taskviewer.showLaunches",
+					"group": "navigation@1"
+				},
+				{
+					"command": "taskviewer.groupByWorkspace",
+					"when": "view == taskviewer.view && taskviewer.multiRoot && !taskviewer.groupByWorkspace",
+					"group": "navigation@1"
+				},
+				{
+					"command": "taskviewer.ungroupByWorkspace",
+					"when": "view == taskviewer.view && taskviewer.multiRoot && taskviewer.groupByWorkspace",
+					"group": "navigation@1"
+				},
+				{
+					"command": "taskviewer.launchRefresh",
+					"when": "view == taskviewer.launchView",
+					"group": "navigation"
+				}
+			],
+			"view/item/context": [
+				{
+					"command": "taskviewer.stop",
+					"when": "(view == taskviewer.view || view == taskviewer.launchView) && viewItem == running",
+					"group": "inline"
+				},
+				{
+					"command": "taskviewer.run",
+					"when": "(view == taskviewer.view || view == taskviewer.launchView) && viewItem != running && viewItem != group",
+					"group": "inline"
+				},
+				{
+					"command": "taskviewer.edit",
+					"when": "(view == taskviewer.view || view == taskviewer.launchView) && viewItem != noedit && viewItem != group",
+					"group": "inline"
+				}
+			]
+		}
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -p ./",
+		"lint": "eslint \"src/**/*.ts\"",
+		"watch": "tsc -watch -p ./",
+		"package": "vsce package",
+		"publish": "vsce publish patch",
+		"generate-icons": "ts-node scripts/icons.ts node_modules/@vscode/codicons/src/icons assets/icons"
+	},
+	"devDependencies": {
+		"@types/node": "20.x",
+		"@types/vscode": ">=1.80.0",
+		"eslint": "^9.23.0",
+		"typescript-eslint": "^8.27.0",
+		"sharp": "^0.34.3"
+	}
 }

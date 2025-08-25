@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import * as sharp from 'sharp';
+import sharp from 'sharp';
 //import ttf2svg from 'ttf2svg';
 //const ttf2svg = require('ttf2svg');
 

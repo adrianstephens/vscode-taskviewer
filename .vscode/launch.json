@@ -14,9 +14,10 @@
 			"windows": {
 				"args": [
 					"--extensionDevelopmentPath=${workspaceFolder}",
-					//"D:/dev/packages/packages.code-workspace",
-					"D:/dev/shared",
+					"D:/dev/packages/packages.code-workspace",
+					//"D:/dev/shared",
 					//"D:/dev/vscode_ext/registry",
+					//"D:/dev/vscode_ext/taskmake",
 				]
 			},
             "name": "Launch Extension",

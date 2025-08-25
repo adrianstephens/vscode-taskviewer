@@ -1,6 +1,4 @@
 import * as vscode from 'vscode';
-import {isTaskMake} from './taskmake';
-import {taskProvider, taskId, taskWorkspace} from './extension';
 
 //-----------------------------------------------------------------------------
 // Configurations
@@ -47,34 +45,10 @@ interface CompoundLaunchConfiguration extends LaunchConfigurationBase {
 	configurations:	string[];
 	stopAll?:		boolean;
 }
-/*
-function findWorkspace(name: string, configuration: string, entries: string, matchFields: string[]) : vscode.WorkspaceFolder | undefined {
-	if (vscode.workspace.workspaceFolders) {
-		for (const i of vscode.workspace.workspaceFolders) {
-			const config = vscode.workspace.getConfiguration(configuration, i.uri);
-			const values = config.get<any[]>(entries);
-			if (values) {
-				for (const j of values) {
-					const field = matchFields.find(f => j[f] === name);
-					if (field) {
-						matchFields[0] = field;
-						return i;
-					}
-				}
-			}
-		}
-	}
-}
-
-function editConfig(name: string, configuration: string, entries: string, matchFields: string[]) {
-	const ws = findWorkspace(name, configuration, entries, matchFields);
-	if (ws)
-		return editConfig1(ws, name, configuration, matchFields[0]);
-}
-*/
 
 function escapeRegex(str: string) {
-	return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Escapes all special chars
+	return str.replaceAll('\\', '\\\\') // Double \
+		.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Escapes all special chars
 }
 
 function editConfig(workspace: vscode.WorkspaceFolder|undefined, name: string, configuration: string, matchField: string) {
@@ -90,6 +64,27 @@ function editConfig(workspace: vscode.WorkspaceFolder|undefined, name: string, c
 	}
 }
 
+//-----------------------------------------------------------------------------
+// Extensions
+//-----------------------------------------------------------------------------
+
+export interface CustomItem {
+	title:		string;
+	group?:		string;
+	icon?:		vscode.ThemeIcon;
+	tooltip?:	vscode.MarkdownString;
+	run?():		void;
+	edit?():	void;
+	children?(): Promise<CustomItem[]>;
+}
+
+export interface TypeHandler {
+	makeItem(id: string, task: vscode.Task|undefined, def: vscode.TaskDefinition, workspace?: vscode.WorkspaceFolder): CustomItem | void;
+}
+
+export interface TaskProvider {
+	provideItems(): Promise<CustomItem[]>;
+}
 
 //-----------------------------------------------------------------------------
 // TasksShared
@@ -111,12 +106,19 @@ function launchUri(launchId: string) {
 	return vscode.Uri.from({scheme: 'taskviewer-launch', path: '/' + launchId});
 }
 
+
 export class TasksShared implements vscode.FileDecorationProvider {
 	private readonly _onDidChangeFileDecorations = new vscode.EventEmitter<undefined | vscode.Uri | vscode.Uri[]>();
 	private taskStatus: 	Record<string, TaskStatus> = {};
 	private debugStatus:	Record<string, LaunchStatus> = {};
 	private icons:			Record<string, string> = {};
 	private colors:			Record<string, string> = {};
+	private types:			Record<string, TypeHandler> = {};
+	private providers:		TaskProvider[] = [];
+
+	asyncTasks?:	Thenable<Record<string, vscode.Task>>;
+	asyncProvided?:	Thenable<CustomItem[]>;
+	timeout?:		NodeJS.Timeout;
 
 	workspaces: {
 		workspace?:		vscode.WorkspaceFolder;
@@ -124,25 +126,33 @@ export class TasksShared implements vscode.FileDecorationProvider {
 		compounds: 		CompoundLaunchConfiguration[];
 		taskConfigs:	TaskConfiguration[];
 	}[]	= [];
+	
+	multiRoot = (vscode.workspace.workspaceFolders?.length ?? 0) > 1;
 
 	get	onDidChangeFileDecorations() { return this._onDidChangeFileDecorations.event; }
 
-	constructor(context: vscode.ExtensionContext) {
-		context.subscriptions.push(
-			vscode.window.registerFileDecorationProvider(this),
-			
-			vscode.commands.registerCommand('taskviewer.stop',	(item: TaskItem) => {
-				if (item.type === 'task') {
-					this.taskStatus[item.id]?.execution?.terminate();
-				} else if (item.type === 'launch') {
-					console.log(`stop ${item.id}`);
-					vscode.debug.stopDebugging(this.debugStatus[item.id].session);
-				}
-			}),
-		);
-	
+	constructor() {
 		this.updateSettings();
 		this.refresh();
+	}
+
+	async getTasks(refresh = false) {
+		if (!this.asyncTasks || (refresh && !this.timeout)) {
+			this.asyncTasks = vscode.tasks.fetchTasks().then(tasks => {
+				this.timeout = setTimeout(() => this.timeout = undefined, 5000);
+				return Object.fromEntries(tasks.map(task => [taskId(task), task]));
+			});
+			this.asyncProvided = Promise.all(this.providers.map(p => p.provideItems())).then(items => items.flat());
+		}
+		return await this.asyncTasks!;
+	}
+
+	async getTaskById(id: string) {
+		return (await this.getTasks())[id];
+	}
+
+	async getProvided() {
+		return await this.asyncProvided;
 	}
 
 	provideFileDecoration(uri: vscode.Uri, _token: vscode.CancellationToken) {
@@ -209,6 +219,15 @@ export class TasksShared implements vscode.FileDecorationProvider {
 		return name in this.debugStatus;
 	}
 
+	stop(item: Item)  {
+		if (item.type === 'task') {
+			this.taskStatus[item.id]?.execution?.terminate();
+		} else if (item.type === 'launch') {
+			console.log(`stop ${item.id}`);
+			vscode.debug.stopDebugging(this.debugStatus[item.id].session);
+		}
+	}
+
 	updateSettings() {
 		const config	= vscode.workspace.getConfiguration('taskviewer');
 		this.icons		= config.icons;
@@ -216,10 +235,11 @@ export class TasksShared implements vscode.FileDecorationProvider {
 	}
 
 	refresh() {
+		clearTimeout(this.timeout);
+		this.asyncTasks = undefined;
+
 		this.taskStatus	= {};
 		this.workspaces	= [];
-
-		taskProvider.refresh();
 
 		const getWorkspace = (workspace?: vscode.WorkspaceFolder) => {
 			const config		= vscode.workspace.getConfiguration('launch', workspace?.uri);
@@ -240,18 +260,57 @@ export class TasksShared implements vscode.FileDecorationProvider {
 			this.workspaces.push(getWorkspace());
 	}
 
+	registerType(type: string, handler: TypeHandler) {
+		this.types[type] = handler;
+	}
+	registerProvider(handler: TaskProvider) {
+		this.providers.push(handler);
+	}
+	makeTaskItem(task: vscode.Task) : Item {
+		const handler = this.types[task?.definition.type];
+		if (handler) {
+			const workspace = typeof task.scope === 'object' ? task.scope : undefined;
+			const id		= itemId(task.name, workspace);
+			const custom	= handler.makeItem(id, task, task.definition, workspace);
+			if (custom)
+				return new CustomItemWrapper({group: task?.definition.type, ...custom}, id, workspace);
+		}
+		return new TaskItemTask(task);
+	}
+	makeItem(task: vscode.Task|undefined, config: TaskConfiguration, workspace?: vscode.WorkspaceFolder) : Item {
+		const handler = this.types[config.type];
+		if (handler) {
+			const id = itemId(task?.name ?? configName(config), workspace);
+			const custom = handler.makeItem(id, task, config, workspace);
+			if (custom)
+				return new CustomItemWrapper({group: config.type, ...custom}, id, workspace);
+		}
+		return task ? new TaskItemTask(task) : new TaskItemConfig(this, config, workspace);
+	}
+
+	editConfig(workspace: vscode.WorkspaceFolder|undefined, name: string, configuration: string, matchField: string) {
+		editConfig(workspace, name, configuration, matchField);
+	}
 }
 
 //-----------------------------------------------------------------------------
 // TaskItem
 //-----------------------------------------------------------------------------
 
-function itemTitle(multi_workspace: boolean, name: string, ws?: vscode.WorkspaceFolder)	{
-	return multi_workspace && ws ? `${name} (${ws.name})` : name;
+export function itemId(name: string, ws?: vscode.WorkspaceFolder) {
+	return ws ? ws.name + '.' + name : name;
 }
 
-function itemId(name: string, ws?: vscode.WorkspaceFolder) {
-	return ws ? ws.name + '.' + name : name;
+export function taskId(task: vscode.Task) {
+	return itemId(task.name, typeof task.scope === 'object' ? task.scope : undefined);
+}
+
+function makeIcon(name: string, color?: string): vscode.ThemeIcon {
+	return new vscode.ThemeIcon(name, color ? new vscode.ThemeColor(color) : undefined);
+}
+
+function itemTitle(multi_workspace: boolean, name: string, ws?: vscode.WorkspaceFolder)	{
+	return multi_workspace && ws ? `${name} (${ws.name})` : name;
 }
 
 function configName(config: TaskConfiguration) {
@@ -259,56 +318,73 @@ function configName(config: TaskConfiguration) {
 //	return config.label ?? `${config.type}: ${config.script ?? config.task ?? config.command}`;
 }
 
-function configId(config: TaskConfiguration, ws?: vscode.WorkspaceFolder) {
-	return itemId(configName(config), ws);
-}
-
-export abstract class TaskItem {
+export abstract class Item {
 	abstract type:	string;
 	abstract id:	string;
-	get icontype()	{ return this.type; }
-	get colortype()	{ return ''; }
 	get group()		{ return ''; }
 	get order(): number | undefined { return undefined; }
 
-	title(_multi_workspace: boolean):	string	{ return this.id; }
-	tooltip(): 		vscode.MarkdownString | undefined { return undefined; }
-	run?():			void;
+	run()			{}
 	canEdit()		{ return false; }	
 	edit()			{}
-	hasChildren() 	{ return false; }
-	children(_tree?: TaskTreeProvider): TaskItem[]	{ return []; }
+	children(_tree?: TaskTreeProvider): Item[]|Promise<Item[]>	{ return []; }
+
+	abstract makeTreeItem(shared: TasksShared): vscode.TreeItem;
 }
 
-class TaskItemGroup extends TaskItem {
-	constructor(public id: string, private entries: TaskItem[]) { super(); }
+class GroupItem extends Item {
+	constructor(public id: string, public entries: Item[]) { super(); }
 	readonly type = 'group';
 	get icontype()	{ return this.id; }
-	hasChildren()	{ return true; }
 	children()		{ return this.entries; }
+
+	makeTreeItem(shared: TasksShared) {
+		const titem			= new vscode.TreeItem(this.id, vscode.TreeItemCollapsibleState.Expanded);
+		titem.iconPath		= new vscode.ThemeIcon(shared.getIconName(this.icontype));
+		titem.contextValue	= 'group';
+		return titem;
+	}
 }
 
-class TaskItemWorkspaceGroup extends TaskItemGroup {
+class WorkspaceGroupItem extends GroupItem {
 	get icontype() { return 'workspace'; }
+	makeTreeItem(shared: TasksShared) {
+		const titem			= new vscode.TreeItem(this.id, vscode.TreeItemCollapsibleState.Collapsed);
+		titem.iconPath		= new vscode.ThemeIcon(shared.getIconName(this.icontype));
+		titem.contextValue	= 'group';
+		return titem;
+	}
 }
 
 class GroupHelper {
-	groups:	Record<string, TaskItem[]>	= {};
-	add(item: TaskItem) {
-		(this.groups[item.group] ??= []).push(item);
+	groups:	Record<string, GroupItem>	= {};
+	add(item: Item) {
+		const i = item.group || item.type;
+		(this.groups[i] ??= new GroupItem(i, [])).entries.push(item);
+	}
+	addPost(item: Item, tree: TaskTreeProvider, parent?: Item) {
+		const i = item.group || item.type;
+		if (!this.groups[i]) {
+			this.groups[i] = new GroupItem(i, [item]);
+			tree.refresh(parent);
+		} else {
+			this.groups[i].entries.push(item);
+			tree.refresh(this.groups[i]);
+		}
 	}
 	cleanup() {
-		const get_order = (item: TaskItem) => item.order ?? 10000;
+		const get_order = (item: Item) => item.order ?? 10000;
 		const groups = this.groups;
 
-		if (groups['']) {
-			groups[''].filter(i => (groups[i.type ?? ''] ??= []).push(i));
-			delete groups[''];
-		}
+//		const groups2 = Object.entries(groups)
+//			.map(([key, group]) => new GroupItem(key, group.entries.sort((a, b) => get_order(a) - get_order(b))))
+//			.sort((a, b) => a.id > b.id ? 1 : -1);
 
-		const groups2 = Object.entries(groups)
-			.map(([key, value]) => new TaskItemGroup(key, value.sort((a, b) => get_order(a) - get_order(b))))
-			.sort((a, b) => (a.id > b.id) ? 1 : -1);
+		Object.values(groups)
+			.sort((a, b) => a.id > b.id ? 1 : -1)
+			.forEach(group => group.entries.sort((a, b) => get_order(a) - get_order(b)));
+
+		const groups2 = Object.values(groups).sort((a, b) => a.id > b.id ? 1 : -1);
 
 		for (const i of groups2) {
 			const match = i.id.match(/^\d+_(.*)/);
@@ -318,61 +394,81 @@ class GroupHelper {
 
 		return groups2;
 	}
-
-	populate(configs: TaskConfiguration[], tasks: Record<string, vscode.Task>, ws?: vscode.WorkspaceFolder) {
+/*
+	populate(shared: TasksShared, configs: TaskConfiguration[], tasks: Record<string, vscode.Task>, ws?: vscode.WorkspaceFolder) {
 		configs.forEach(i => {
-			const id	= configId(i, ws);
-			const task	= tasks[id];
-			if (task) {
-				delete tasks[id];
-				this.add(new TaskItemTask(task));
-			} else {
-				this.add(new TaskItemTaskConfig(i, ws));
-			}
+			const id	= itemId(configName(i), ws);
+			delete tasks[id];
+			this.add(shared.makeItem(tasks[id], i, ws));
 			//const item = new TaskItemTaskConfig(i, ws.workspace);
 			//delete tasks[item.id];
 			//groups.add(item);
 		});
 
 	}
+*/
 }
 
 //-----------------------------------------------------------------------------
 // Task TaskItems
 //-----------------------------------------------------------------------------
 
-abstract class TaskItemTaskBase extends TaskItem {
+abstract class TaskItem extends Item {
 	readonly type = 'task';
 	abstract workspace?:	vscode.WorkspaceFolder;
 	abstract name:			string;
+	abstract icontype:		string;
+	get colortype()	{ return ''; }
+	get id()		{ return itemId(this.name, this.workspace); }
 
-	run()		{
-		taskProvider.getTasksAsync().then(tasks => {
-			const task = tasks.byId[this.id];
-			if (task)
-				vscode.tasks.executeTask(task);
-		});
-	}
 	canEdit()	{ return true; }
 	edit()		{ editConfig(this.workspace, this.name, 'tasks', '(?:label|task|script|command)'); }
-}
-
-//task item from tasks.json
-
-class TaskItemTaskConfig extends TaskItemTaskBase {
-	constructor(private config: TaskConfiguration, public workspace?: vscode.WorkspaceFolder) {
-		super();
-	}
-
-	get name()		{ return configName(this.config); }
-	get id()		{ return configId(this.config, this.workspace); }
-	get icontype()	{ return this.id.toLowerCase(); }
-	get colortype()	{ return this.config.type ?? 'compound'; }
-	get group()		{ return (typeof this.config.group === 'string' ? this.config.group : this.config.group?.kind) ?? ''; }
 
 	title(multi_workspace: boolean)	{
 		return itemTitle(multi_workspace, this.name, this.workspace);
 	}
+
+	tooltip(): 		vscode.MarkdownString | undefined { return undefined; }
+	hasChildren() { return false; }
+
+	makeTreeItem(shared: TasksShared) {
+		const status		= shared.getTaskStatus(this.id);
+		const active		= !!status?.execution;
+		const icon			= active ? 'sync~spin' : shared.getIconName(this.icontype);
+		const color 		= active ? undefined : shared.getColor(this.colortype.toLowerCase());
+
+		const titem			= makeTreeItem(this, this.title(shared.multiRoot), this.hasChildren(), true, makeIcon(icon, color));
+		titem.contextValue	= active ? 'running' : this.canEdit() ? 'task' : 'noedit';
+		//titem.description	= active ? 'running' : status ? (status.exitCode === undefined ? 'Stopped' : status.exitCode === 0 ? 'Success' : `Failed (${status.exitCode})`) : undefined;
+		titem.tooltip		= this.tooltip();
+		titem.resourceUri	= taskUri(this.id);
+		return titem;
+	}
+}
+
+//task item from tasks.json
+
+abstract class TaskItemWithId extends TaskItem {
+	constructor(public shared: TasksShared, public workspace?: vscode.WorkspaceFolder) {
+		super();
+	}
+
+	async run()		{
+		const task = await this.shared.getTaskById(this.id);
+		if (task)
+			vscode.tasks.executeTask(task);
+	}
+}
+
+class TaskItemConfig extends TaskItemWithId {
+	constructor(shared: TasksShared, private config: TaskConfiguration, workspace?: vscode.WorkspaceFolder) {
+		super(shared, workspace);
+	}
+
+	get name()		{ return configName(this.config); }
+	get icontype()	{ return this.id.toLowerCase(); }
+	get colortype()	{ return this.config.type ?? 'compound'; }
+	get group()		{ return (typeof this.config.group === 'string' ? this.config.group : this.config.group?.kind) ?? ''; }
 
 	tooltip() {
 		const tooltip = new vscode.MarkdownString('', true);
@@ -384,45 +480,38 @@ class TaskItemTaskConfig extends TaskItemTaskBase {
 		return tooltip;
 	}
 	hasChildren() {
-		return !!this.config.dependsOn
-			|| (isTaskMake(this.config) && !!(this.config.inputs?.length || this.config.outputs?.length));
+		return !!this.config.dependsOn;
 	}
-	children(tree: TaskTreeProvider)	{
-		const children: TaskItem[] = [];
-		if (this.config.dependsOn) {
-			if (Array.isArray(this.config.dependsOn))
-				children.push(...this.config.dependsOn.map(name => new TaskItemBefore(name, this.workspace)));
-			else
-				children.push(new TaskItemBefore(this.config.dependsOn, this.workspace));
-		}
-
-		if (isTaskMake(this.config)) {
-			if (this.config.inputs)
-				children.push(...this.config.inputs.map(input => new TaskItemInput(tree, input)));
-			if (this.config.outputs)
-				children.push(...this.config.outputs.map(output => new TaskItemOutput(output)));
-		}
-
-		return children;
+	children(_tree: TaskTreeProvider)	{
+		return Array.isArray(this.config.dependsOn)
+			? this.config.dependsOn.map(name => new TaskItemBefore(this.shared, name, this.workspace))
+			: [new TaskItemBefore(this.shared, this.config.dependsOn!, this.workspace)];
 	}
+}
+
+class TaskItemBefore extends TaskItemWithId {
+	constructor(shared: TasksShared, public name: string, workspace?: vscode.WorkspaceFolder) { super(shared, workspace); }
+	get icontype()		{ return 'before'; }
+}
+
+class TaskItemAfter extends TaskItemWithId {
+	constructor(shared: TasksShared, public name: string, workspace?: vscode.WorkspaceFolder) { super(shared, workspace); }
+	get icontype()		{ return 'after'; }
 }
 
 //task item from fetchTasks
 
-class TaskItemTask extends TaskItemTaskBase {
-	constructor(private task: vscode.Task) { super(); }
+class TaskItemTask extends TaskItem {
+	constructor(private task: vscode.Task) {
+		super();
+	}
+
 	get name()		{ return this.task.name; }
-	get id()		{ return taskId(this.task); }
 	get icontype()	{ return this.id.toLowerCase(); }
 	get colortype()	{ return this.task.definition.type; }
 	get group()		{ return this.task.group?.id ?? this.task.source ?? ''; }
+	get workspace() { return typeof(this.task.scope) === 'object' ? this.task.scope : undefined; }
 
-	get workspace() {
-		return typeof(this.task.scope) === 'object' ? this.task.scope : undefined;
-	}
-	title(multi_workspace: boolean)	{
-		return itemTitle(multi_workspace, this.task.name, this.workspace);
-	}
 	canEdit()	{ return this.task.source === 'Workspace'; }
 	run()		{ vscode.tasks.executeTask(this.task); }
 
@@ -437,92 +526,70 @@ class TaskItemTask extends TaskItemTaskBase {
 	}
 }
 
-class TaskItemBefore extends TaskItemTaskBase {
-	constructor(public name: string, public workspace?: vscode.WorkspaceFolder) { super(); }
-	get id()			{ return itemId(this.name, this.workspace); }
-	get icontype()		{ return 'before'; }
-	title(multi_workspace: boolean)	{ return itemTitle(multi_workspace, this.name, this.workspace); }
-}
-class TaskItemAfter extends TaskItemTaskBase {
-	constructor(public name: string, public workspace?: vscode.WorkspaceFolder) { super(); }
-	get id()			{ return itemId(this.name, this.workspace); }
-	get icontype()		{ return 'after'; }
-	title(multi_workspace: boolean)	{ return itemTitle(multi_workspace, this.name, this.workspace); }
-}
 
-class TaskItemInput extends TaskItemTaskBase {
-	task?: vscode.Task | null;
-	constructor(tree: TaskTreeProvider, public name: string) {
+class CustomItemWrapper extends Item {
+	readonly type = 'task';
+	constructor(private item: CustomItem, public id: string, private workspace?: vscode.WorkspaceFolder) {
 		super();
-		taskProvider.getTasksAsync().then(() => {
-			this.task = taskProvider.getBuilder(name) ?? null;
-			tree.refresh(this);
-		});
 	}
-	get workspace()		{ return undefined; }
-	get id()			{ return this.name; }
-	get icontype()		{ return 'input'; }
-	get colortype()		{ return 'input'; }
+	get group()			{ return this.item.group ?? ''; }
 
-	title(_multi_workspace: boolean)	{
-		return this.task === null ? this.name : `${this.name} (${this.task?.name ?? 'searching...'})`;
-	}
-	run()		{
-		const output = (message: string) => console.log(message);
-		taskProvider.getTasksAsync().then(() =>
-			taskProvider.getDepends([this.name], [], taskWorkspace(this.task!)?.uri.fsPath ?? '').forEach(task => task.run(output))
-		);
-	}
-	canEdit(): boolean {
-		return !!this.task;
-	}
-	edit()		{
-		if (this.task)
-			editConfig(taskWorkspace(this.task), this.task.name, 'tasks', 'label');
-	}
-}
+	title(multi_workspace: boolean)	{ return itemTitle(multi_workspace, this.item.title, this.workspace); }
+	tooltip()			{ return this.item.tooltip; }
+	run()				{ this.item.run?.(); }
+	edit()				{ this.item.edit?.(); }
+	hasChildren()		{ return !!this.item.children; }
+	async children()	{ return (await this.item.children!()).map(i => new CustomItemWrapper(i, 'id', this.workspace)) ?? []; }
 
-class TaskItemOutput extends TaskItemTaskBase {
-	constructor(public name: string) { super(); }
-	get workspace()		{ return undefined; }
-	get id()			{ return this.name; }
-	get icontype()		{ return 'output'; }
-	get colortype()		{ return 'output'; }
-	canEdit()			{ return false; }
-	title(_multi_workspace: boolean)	{ return this.name; }
+	makeTreeItem(shared: TasksShared) {
+		const status		= shared.getTaskStatus(this.id);
+		const active		= !!status?.execution;
+		const icon			= active ? new vscode.ThemeIcon('sync~spin') : this.item.icon ?? new vscode.ThemeIcon(shared.getIconName('default'));
+		const titem			= makeTreeItem(this, this.title(shared.multiRoot), this.hasChildren(), !!this.item.run, icon);
+		titem.contextValue	= active ? 'running' : this.item.edit ? 'task' : 'noedit';
+		titem.tooltip		= this.tooltip();
+		titem.resourceUri	= taskUri(this.id);
+		return titem;
+	}
 }
 
 //-----------------------------------------------------------------------------
 // Debug TaskItems
 //-----------------------------------------------------------------------------
 
-class TaskItemLaunch extends TaskItem {
+class LaunchItem extends Item {
 	readonly type = 'launch';
 	constructor(private config: LaunchConfiguration, private workspace?: vscode.WorkspaceFolder) { super(); }
 
-	title(multi_workspace: boolean)	{ return itemTitle(multi_workspace, this.config.name, this.workspace); }
-
 	get id()		{ return itemId(this.config.name, this.workspace); }
 	get order()		{ return this.config.presentation?.order;}
-	get icontype()	{ return this.type; }
-	get colortype()	{ return this.config.type; }
 	get group()		{ return this.config.presentation?.group ?? ''; }
 
-	canEdit()		{ return true; }
 	edit() 			{ editConfig(this.workspace, this.config.name, 'launch', 'name'); }
 	run() 			{ vscode.debug.startDebugging(this.workspace, this.config); }
-	hasChildren()	{ return !!(this.config.preLaunchTask || this.config.postDebugTask); }
-	children()	{
-		const children: TaskItem[] = [];
+
+	children(tree: TaskTreeProvider)	{
+		const children: Item[] = [];
 		if (this.config.preLaunchTask)
-			children.push(new TaskItemBefore(this.config.preLaunchTask, this.workspace));
+			children.push(new TaskItemBefore(tree.shared, this.config.preLaunchTask, this.workspace));
 		if (this.config.postDebugTask)
-			children.push(new TaskItemAfter(this.config.postDebugTask, this.workspace));
+			children.push(new TaskItemAfter(tree.shared, this.config.postDebugTask, this.workspace));
 		return children;
 	}
+
+	makeTreeItem(shared: TasksShared): vscode.TreeItem {
+		const status		= shared.isDebugging(this.id);
+		const title			= itemTitle(shared.multiRoot, this.config.name, this.workspace);
+		const hasChildren	= !!(this.config.preLaunchTask || this.config.postDebugTask);
+		const titem			= makeTreeItem(this, title, hasChildren, true, makeIcon(status ? 'sync~spin' : 'debug-alt', shared.getColor(this.config.type)));
+		titem.contextValue	= status ? 'running' : 'launch';
+		titem.resourceUri	= launchUri(this.id);
+		return titem;
+	}
+
 }
 
-class TaskItemCompound extends TaskItem {
+class CompoundItem extends Item {
 	readonly type = 'compound';
 	constructor(private config: CompoundLaunchConfiguration, private workspace?: vscode.WorkspaceFolder) { super(); }
 
@@ -530,142 +597,121 @@ class TaskItemCompound extends TaskItem {
 
 	get id()		{ return itemId(this.config.name, this.workspace); }
 	get order()		{ return this.config.presentation?.order;}
-	get icontype()	{ return this.type; }
-	get colortype()	{ return 'compound'; }
 	get group()		{ return this.config.presentation?.group ?? ''; }
 
-	canEdit()		{ return true; }
 	edit()			{ editConfig(this.workspace, this.config.name, 'launch', 'name'); }
 	run()			{ vscode.debug.startDebugging(this.workspace, this.config.name); }
-	hasChildren()	{ return true; }
-	children()		{ return this.config.configurations.map(name => new TaskItemLaunch({type: 'compound', name, request:''}, this.workspace!)); }
+	children()		{ return this.config.configurations.map(name => new LaunchItem({type: 'compound', name, request:''}, this.workspace!)); }
+
+	makeTreeItem(shared: TasksShared): vscode.TreeItem {
+		return makeTreeItem(this, this.title(shared.multiRoot), true, true, makeIcon('run-all', shared.getColor('compound')));
+	}
 }
 
 //-----------------------------------------------------------------------------
 // TaskTreeProvider
 //-----------------------------------------------------------------------------
 
-function makeTreeItem(item: TaskItem, icon_name: string, icon_color: string | undefined, multi_workspace: boolean) {
-	const titem = new vscode.TreeItem(item.title(multi_workspace), item.hasChildren() ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
-	if (item.run)
-		titem.command = {
-			command: 'taskviewer.run',
-			title: '',
-			arguments: [item]
-		};
-	titem.iconPath	= new vscode.ThemeIcon(
-		icon_name,
-		icon_color ? new vscode.ThemeColor(icon_color) : undefined
+function makeTreeItem(item: Item, title: string, hasChildren: boolean, canRun: boolean, iconPath: vscode.ThemeIcon) {
+	const titem = new vscode.TreeItem(
+		title,
+		hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None
 	);
+	if (canRun)
+		titem.command = {
+			command:	'taskviewer.run',
+			title:		'Run Task',
+			arguments:	[item]
+		};
+	titem.iconPath	= iconPath;
 	return titem;
 }
 
-export class TaskTreeProvider implements vscode.TreeDataProvider<TaskItem> {
-	private readonly _onDidChangeTreeData = new vscode.EventEmitter<TaskItem | undefined | null | void>();
+export class TaskTreeProvider implements vscode.TreeDataProvider<Item> {
+	private readonly _onDidChangeTreeData = new vscode.EventEmitter<Item | undefined | null | void>();
 	get onDidChangeTreeData() { return this._onDidChangeTreeData.event; }
 
 	public showAll			= false;
 	public groupByWorkspace = false;
 	public multiRoot		= false;
+	private root?: Item[];
 	
-	constructor(private shared: TasksShared, public showTasks: boolean, public showLaunches: boolean) {
+	constructor(public shared: TasksShared, public showTasks: boolean, public showLaunches: boolean) {
 	}
 
-	refresh(item?: TaskItem) {
+	refresh(item?: Item) {
 		this._onDidChangeTreeData.fire(item);
 	}
 
-	getTreeItem(item: TaskItem): vscode.TreeItem {
-		switch (item.type) {
-			default:
-			case 'group': {
-				const titem			= new vscode.TreeItem(item.id, vscode.TreeItemCollapsibleState.Expanded);
-				titem.iconPath		= new vscode.ThemeIcon(this.shared.getIconName(item.icontype));
-				titem.contextValue	= 'noedit';
-				return titem;
-			}
-			case 'task': {
-				const status		= this.shared.getTaskStatus(item.id);
-				const active		= !!status?.execution;
-				const icon			= active ? 'sync~spin' : this.shared.getIconName(item.icontype);
-				const color 		= active ? undefined : this.shared.getColor(item.colortype.toLowerCase());
-
-				const titem			= makeTreeItem(item, icon, color, this.multiRoot);
-				titem.contextValue	= active ? 'running' : item.canEdit() ? 'task' : 'noedit';
-				//titem.description	= active ? 'running' : status ? (status.exitCode === undefined ? 'Stopped' : status.exitCode === 0 ? 'Success' : `Failed (${status.exitCode})`) : undefined;
-				titem.tooltip		= item.tooltip();
-				titem.resourceUri	= taskUri(item.id);
-				return titem;
-			}
-			case 'launch': {
-				const status		= this.shared.isDebugging(item.id);
-				const icon			= status ? 'sync~spin' : 'debug-alt';
-				const titem			= makeTreeItem(item, icon, this.shared.getColor(item.colortype), this.multiRoot);
-				titem.contextValue	= status ? 'running' : 'launch';
-				titem.resourceUri	= launchUri(item.id);
-				return titem;
-			}
-
-			case 'compound':
-				return makeTreeItem(item, 'run-all', this.shared.getColor(item.colortype), this.multiRoot);
-		}
+	fullRefresh() {
+		this.root = undefined;
+		this._onDidChangeTreeData.fire();
 	}
 
-	async getChildren(item?: TaskItem): Promise<TaskItem[]> {
-		if (!item) {
-			const tasks:	Record<string, vscode.Task>	= this.showAll ? {...(await taskProvider.getTasksAsync()).byId} : {};
+	getTreeItem(item: Item): vscode.TreeItem {
+		return item.makeTreeItem(this.shared);
+	}
 
-			if (this.groupByWorkspace) {
-				return this.shared.workspaces.map(ws => {
-					const groups	= new GroupHelper;
+	async getChildren(item?: Item): Promise<Item[]> {
+		if (item)
+			return item.children(this);
+		if (this.root)
+			return this.root;
 
-					if (this.showTasks) {
-						if (this.showAll) {
-							groups.populate(ws.taskConfigs, tasks, ws.workspace);
+		const provided = await this.shared.getProvided();
 
-							if (ws.workspace) {
-								const prefix	= ws.workspace.name + '.';
-								const wstasks	= Object.keys(tasks).filter(k => k.startsWith(prefix));
-								wstasks.forEach(k => groups.add(new TaskItemTask(tasks[k])));
-								wstasks.forEach(k => delete tasks[k]);
-							} else {
-								Object.values(tasks).forEach(task => groups.add(new TaskItemTask(task)));
-							}
-
-						} else {
-							ws.taskConfigs.forEach(i => groups.add(new TaskItemTaskConfig(i, ws.workspace!)));
-						}
-					}
-
-					if (this.showLaunches) {
-						ws.launches.forEach(i => groups.add(new TaskItemLaunch(i, ws.workspace)));
-						ws.compounds.forEach(i => groups.add(new TaskItemCompound(i, ws.workspace)));
-					}
-
-					return new TaskItemWorkspaceGroup(ws.workspace?.name ?? 'workspace', groups.cleanup());
-
-				});
-
-			} else {
+		if (this.groupByWorkspace) {
+			this.root = this.shared.workspaces.map(ws => {
 				const groups	= new GroupHelper;
+				const branch	= new WorkspaceGroupItem(ws.workspace?.name ?? 'workspace', []);
+
 				if (this.showTasks) {
+					ws.taskConfigs.forEach(i => groups.add(this.shared.makeItem(undefined, i, ws.workspace!)));
+
 					if (this.showAll) {
-						this.shared.workspaces.forEach(ws => groups.populate(ws.taskConfigs, tasks, ws.workspace));
-						Object.values(tasks).forEach(task => groups.add(new TaskItemTask(task)));
-					} else {
-						this.shared.workspaces.forEach(ws => ws.taskConfigs.forEach(i => groups.add(new TaskItemTaskConfig(i, ws.workspace))));
+						this.shared.getTasks().then(tasks => {
+							const extra = ws.workspace
+								? Object.values(tasks).filter(task => task.source !== 'Workspace' && task.scope === ws.workspace)
+								: Object.values(tasks).filter(task => task.source !== 'Workspace' && typeof task.scope !== 'object');
+							extra.forEach(task => groups.addPost(this.shared.makeTaskItem(task), this, branch));
+						});
 					}
+
 				}
 
 				if (this.showLaunches) {
-					this.shared.workspaces.forEach(ws => ws.launches.forEach(i => groups.add(new TaskItemLaunch(i, ws.workspace!))));
-					this.shared.workspaces.forEach(ws => ws.compounds.forEach(i => groups.add(new TaskItemCompound(i, ws.workspace!))));
+					ws.launches.forEach(i => groups.add(new LaunchItem(i, ws.workspace)));
+					ws.compounds.forEach(i => groups.add(new CompoundItem(i, ws.workspace)));
 				}
 
-				return groups.cleanup();
+				branch.entries.push(...groups.cleanup());
+				return branch;
+			});
+
+		} else {
+			const groups = new GroupHelper;
+			if (this.showTasks) {
+				this.shared.workspaces.forEach(ws => ws.taskConfigs.forEach(i => groups.add(this.shared.makeItem(undefined, i, ws.workspace))));
+
+				if (this.showAll) {
+					this.shared.getTasks().then(tasks => {
+						tasks = {...tasks};
+						this.shared.workspaces.forEach(ws => ws.taskConfigs.forEach(i => delete tasks[itemId(configName(i), ws.workspace)]));
+						Object.values(tasks).forEach(task => groups.addPost(this.shared.makeTaskItem(task), this));
+					});
+				}
+
+				provided?.forEach(item => groups.add(new CustomItemWrapper(item, `provided.${item.title}`, undefined)));
 			}
 
+			if (this.showLaunches) {
+				this.shared.workspaces.forEach(ws => ws.launches.forEach(i => groups.add(new LaunchItem(i, ws.workspace!))));
+				this.shared.workspaces.forEach(ws => ws.compounds.forEach(i => groups.add(new CompoundItem(i, ws.workspace!))));
+			}
+
+
+			this.root = groups.cleanup();
 		}
-		return item.children(this);
+		return this.root;
 	}
 }
