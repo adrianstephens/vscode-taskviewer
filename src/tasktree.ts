@@ -333,10 +333,16 @@ export abstract class Item {
 }
 
 class GroupItem extends Item {
-	constructor(public id: string, public entries: Item[]) { super(); }
+	constructor(public id: string, public entries: Item[]) { super(); 
+	}
 	readonly type = 'group';
 	get icontype()	{ return this.id; }
 	children()		{ return this.entries; }
+
+	sort() {
+		const get_order = (item: Item) => item.order ?? 10000;
+		this.entries.sort((a, b) => get_order(a) - get_order(b));
+	}
 
 	makeTreeItem(shared: TasksShared) {
 		const titem			= new vscode.TreeItem(this.id, vscode.TreeItemCollapsibleState.Expanded);
@@ -356,43 +362,40 @@ class WorkspaceGroupItem extends GroupItem {
 	}
 }
 
-class GroupHelper {
+function makeGroup(id: string) {
+	const match = id.match(/^\d+_(.*)/);
+	return new GroupItem(match ? match[1] : id, []);
+}
+
+class GroupHelper extends Array<Item> {
 	groups:	Record<string, GroupItem>	= {};
+
 	add(item: Item) {
 		const i = item.group || item.type;
-		(this.groups[i] ??= new GroupItem(i, [])).entries.push(item);
+		(this.groups[i] ??= makeGroup(i)).entries.push(item);
 	}
 	addPost(item: Item, tree: TaskTreeProvider, parent?: Item) {
 		const i = item.group || item.type;
 		if (!this.groups[i]) {
 			this.groups[i] = new GroupItem(i, [item]);
-			tree.refresh(parent);
+			this.makeArray();
+			tree.update(parent);
 		} else {
-			this.groups[i].entries.push(item);
-			tree.refresh(this.groups[i]);
+			const group = this.groups[i];
+			group.entries.push(item);
+			group.sort();
+			tree.update(group);
 		}
 	}
 	cleanup() {
-		const get_order = (item: Item) => item.order ?? 10000;
-		const groups = this.groups;
-
-//		const groups2 = Object.entries(groups)
-//			.map(([key, group]) => new GroupItem(key, group.entries.sort((a, b) => get_order(a) - get_order(b))))
-//			.sort((a, b) => a.id > b.id ? 1 : -1);
-
-		Object.values(groups)
-			.sort((a, b) => a.id > b.id ? 1 : -1)
-			.forEach(group => group.entries.sort((a, b) => get_order(a) - get_order(b)));
-
-		const groups2 = Object.values(groups).sort((a, b) => a.id > b.id ? 1 : -1);
-
-		for (const i of groups2) {
-			const match = i.id.match(/^\d+_(.*)/);
-			if (match)
-				i.id = match[1];
-		}
-
-		return groups2;
+		Object.values(this.groups).forEach(group => group.sort());
+		this.makeArray();
+		return this;
+	}
+	makeArray() {
+		this.length = 0;
+		this.push(...Object.values(this.groups));
+		this.sort((a, b) => a.id > b.id ? 1 : -1);
 	}
 /*
 	populate(shared: TasksShared, configs: TaskConfiguration[], tasks: Record<string, vscode.Task>, ws?: vscode.WorkspaceFolder) {
@@ -639,11 +642,11 @@ export class TaskTreeProvider implements vscode.TreeDataProvider<Item> {
 	constructor(public shared: TasksShared, public showTasks: boolean, public showLaunches: boolean) {
 	}
 
-	refresh(item?: Item) {
+	update(item?: Item) {
 		this._onDidChangeTreeData.fire(item);
 	}
 
-	fullRefresh() {
+	refresh() {
 		this.root = undefined;
 		this._onDidChangeTreeData.fire();
 	}
@@ -655,13 +658,14 @@ export class TaskTreeProvider implements vscode.TreeDataProvider<Item> {
 	async getChildren(item?: Item): Promise<Item[]> {
 		if (item)
 			return item.children(this);
-		if (this.root)
-			return this.root;
+		return this.root ??= await this.makeRoot();
+	}
 
+	async makeRoot() {
 		const provided = await this.shared.getProvided();
 
 		if (this.groupByWorkspace) {
-			this.root = this.shared.workspaces.map(ws => {
+			return this.shared.workspaces.map(ws => {
 				const groups	= new GroupHelper;
 				const branch	= new WorkspaceGroupItem(ws.workspace?.name ?? 'workspace', []);
 
@@ -684,7 +688,7 @@ export class TaskTreeProvider implements vscode.TreeDataProvider<Item> {
 					ws.compounds.forEach(i => groups.add(new CompoundItem(i, ws.workspace)));
 				}
 
-				branch.entries.push(...groups.cleanup());
+				branch.entries = groups.cleanup();
 				return branch;
 			});
 
@@ -695,9 +699,8 @@ export class TaskTreeProvider implements vscode.TreeDataProvider<Item> {
 
 				if (this.showAll) {
 					this.shared.getTasks().then(tasks => {
-						tasks = {...tasks};
-						this.shared.workspaces.forEach(ws => ws.taskConfigs.forEach(i => delete tasks[itemId(configName(i), ws.workspace)]));
-						Object.values(tasks).forEach(task => groups.addPost(this.shared.makeTaskItem(task), this));
+						const extra = Object.values(tasks).filter(task => task.source !== 'Workspace');
+						extra.forEach(task => groups.addPost(this.shared.makeTaskItem(task), this));
 					});
 				}
 
@@ -710,8 +713,7 @@ export class TaskTreeProvider implements vscode.TreeDataProvider<Item> {
 			}
 
 
-			this.root = groups.cleanup();
+			return groups.cleanup();
 		}
-		return this.root;
 	}
 }

@@ -35,12 +35,13 @@ export function activate(context: vscode.ExtensionContext) {
 
 		vscode.commands.registerCommand('taskviewer.refresh', () => {
 			shared.refresh();
-			taskTree.fullRefresh();
+			taskTree.refresh();
 		}),
 
 		vscode.commands.registerCommand('taskviewer.launchRefresh', () => {
+			shared.asyncTasks = undefined;
 			shared.refresh();
-			launchTree.fullRefresh();
+			launchTree.refresh();
 		}),
 
 		vscode.commands.registerCommand('taskviewer.run',	(item: Item) => item.run()),
@@ -50,7 +51,7 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand('taskviewer.showLaunches',	() => setConfig('showLaunches', true)),
 		vscode.commands.registerCommand('taskviewer.hideLaunches',	() => setConfig('showLaunches', false)),
 
-		vscode.commands.registerCommand('taskviewer.showAll',		() => setConfig('showAll', true)),
+		vscode.commands.registerCommand('taskviewer.showAll',		() => { shared.asyncTasks = undefined; setConfig('showAll', true); }),
 		vscode.commands.registerCommand('taskviewer.showConfig',	() => setConfig('showAll', false)),
 
 		vscode.commands.registerCommand('taskviewer.groupByWorkspace',	() => setConfig('groupByWorkspace', true)),
