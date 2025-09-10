@@ -2,7 +2,7 @@
 	"name": "taskviewer",
 	"displayName": "Task Viewer",
 	"description": "Quick access to workspace tasks from and launch scripts from explorer sidebar",
-	"version": "1.1.0",
+	"version": "1.2.0",
 	"publisher": "isopodlabs",
 	"license": "MIT",
 	"icon": "assets/icon.png",
@@ -53,6 +53,11 @@
 				"taskviewer.groupByWorkspace": {
 					"type": "boolean",
 					"description": "Group tasks by workspace.",
+					"default": false
+				},
+				"taskviewer.launch.groupByWorkspace": {
+					"type": "boolean",
+					"description": "Group launch configurations by workspace.",
 					"default": false
 				},
 				"taskviewer.icons": {
@@ -160,9 +165,19 @@
 				"icon": "$(folder)"
 			},
 			{
-				"command": "taskviewer.launchRefresh",
+				"command": "launchviewer.refresh",
 				"title": "Refresh Tasks",
 				"icon": "$(refresh)"
+			},
+			{
+				"command": "launchviewer.groupByWorkspace",
+				"title": "Group by workspace",
+				"icon": "$(file-submodule)"
+			},
+			{
+				"command": "launchviewer.ungroupByWorkspace",
+				"title": "Don't group by workspace",
+				"icon": "$(folder)"
 			}
 		],
 		"views": {
@@ -175,7 +190,7 @@
 			],
 			"debug": [
 				{
-					"id": "taskviewer.launchView",
+					"id": "launchviewer.view",
 					"name": "Launches",
 					"icon": "$(debug)"
 				}
@@ -229,25 +244,35 @@
 					"group": "navigation@1"
 				},
 				{
-					"command": "taskviewer.launchRefresh",
-					"when": "view == taskviewer.launchView",
-					"group": "navigation"
+					"command": "launchviewer.refresh",
+					"when": "view == launchviewer.view",
+					"group": "navigation@3"
+				},
+				{
+					"command": "launchviewer.groupByWorkspace",
+					"when": "view == launchviewer.view && taskviewer.multiRoot && !launchviewer.groupByWorkspace",
+					"group": "navigation@1"
+				},
+				{
+					"command": "launchviewer.ungroupByWorkspace",
+					"when": "view == launchviewer.view && taskviewer.multiRoot && launchviewer.groupByWorkspace",
+					"group": "navigation@1"
 				}
 			],
 			"view/item/context": [
 				{
 					"command": "taskviewer.stop",
-					"when": "(view == taskviewer.view || view == taskviewer.launchView) && viewItem == running",
+					"when": "(view == taskviewer.view || view == launchviewer.view) && viewItem == running",
 					"group": "inline"
 				},
 				{
 					"command": "taskviewer.run",
-					"when": "(view == taskviewer.view || view == taskviewer.launchView) && viewItem != running && viewItem != group",
+					"when": "(view == taskviewer.view || view == launchviewer.view) && viewItem != running && viewItem != group",
 					"group": "inline"
 				},
 				{
 					"command": "taskviewer.edit",
-					"when": "(view == taskviewer.view || view == taskviewer.launchView) && viewItem != noedit && viewItem != group",
+					"when": "(view == taskviewer.view || view == launchviewer.view) && viewItem != noedit && viewItem != group",
 					"group": "inline"
 				}
 			]
