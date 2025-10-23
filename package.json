@@ -2,13 +2,14 @@
 	"name": "taskviewer",
 	"displayName": "Task Viewer",
 	"description": "Quick access to workspace tasks from and launch scripts from explorer sidebar",
-	"version": "1.2.0",
+	"version": "1.3.0",
 	"publisher": "isopodlabs",
 	"license": "MIT",
 	"icon": "assets/icon.png",
 	"engines": {
 		"vscode": "^1.80.0"
 	},
+	"enabledProposedApi": true,
 	"categories": [
 		"Visualization",
 		"Other"
@@ -279,8 +280,8 @@
 		}
 	},
 	"scripts": {
-		"vscode:prepublish": "npm run compile",
-		"compile": "tsc -p ./",
+		"vscode:prepublish": "npm run build",
+		"build": "tsc",
 		"lint": "eslint \"src/**/*.ts\"",
 		"watch": "tsc -watch -p ./",
 		"package": "vsce package",
@@ -291,7 +292,7 @@
 		"@types/node": "20.x",
 		"@types/vscode": ">=1.80.0",
 		"eslint": "^9.23.0",
-		"typescript-eslint": "^8.27.0",
-		"sharp": "^0.34.3"
+		"sharp": "^0.34.3",
+		"typescript-eslint": "^8.27.0"
 	}
 }

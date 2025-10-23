@@ -1,3 +1,4 @@
 {
-    "taskviewer.showAll": false
+	"taskviewer.showAll": true,
+	"taskviewer.showLaunches": true
 }

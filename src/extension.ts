@@ -1,12 +1,96 @@
+// <reference path="E:/Github/vscode/src/vscode-dts/vscode.d.ts" />
+// <reference path="E:/Github/vscode/src/vscode-dts/vscode.proposed.debugLaunchName.d.ts" />
+
 import * as vscode from 'vscode';
-import { TasksShared, TaskTreeProvider, Item } from './tasktree';
+
+import { TasksShared, TaskTreeProvider, Item, CustomItem, editJSON, escapeRegex } from './tasktree';
 export { CustomItem } from './tasktree';
+
+async function getNpmScripts(workspace: vscode.WorkspaceFolder): Promise<CustomItem[]> {
+	const items: CustomItem[] = [];
+	const packagePath	= vscode.Uri.joinPath(workspace.uri, 'package.json');
+	const json			= JSON.parse(Buffer.from(await vscode.workspace.fs.readFile(packagePath)).toString('utf8'));
+
+	// Create items for each npm script
+	if (json.scripts && typeof json.scripts === 'object') {
+		for (const [scriptName, scriptCommand] of Object.entries(json.scripts)) {
+			if (typeof scriptCommand === 'string') {
+				items.push({
+					title:		scriptName,
+					group:		'npm',
+					workspace,
+					icon:		new vscode.ThemeIcon('terminal'),
+					tooltip:	new vscode.MarkdownString(`**${scriptName}**\n\n\`\`\`bash\n${scriptCommand}\n\`\`\``),
+					run: () => {
+						const task = new vscode.Task(
+							{ type: 'npm', script: scriptName },
+							workspace,
+							`npm: ${scriptName}`,
+							'npm',
+							new vscode.ShellExecution('npm', ['run', scriptName])
+						);
+						vscode.tasks.executeTask(task);
+					},
+					edit: () => {
+						editJSON(packagePath, new RegExp(`(?<=\\n\\s*"${escapeRegex(scriptName)}"\\s*:)`, 'm'));
+					}
+				});
+			}
+		}
+	}
+	return items;
+}
+
+class Watchers implements vscode.Disposable {
+	private watchers: vscode.FileSystemWatcher[] = [];
+	private debounceTimeout?: NodeJS.Timeout;
+
+	constructor(private onDidChange: (e: vscode.Uri) => void) {
+	}
+
+	private debouncedCallback = (uri: vscode.Uri) => {
+		if (this.debounceTimeout)
+			clearTimeout(this.debounceTimeout);
+
+		this.debounceTimeout = setTimeout(() => {
+			this.debounceTimeout = undefined;
+			this.onDidChange(uri);
+		}, 250); // 250ms debounce
+	};
+
+	set(patterns: vscode.GlobPattern[]) {
+		this.clear();
+		this.watchers = patterns.map(pattern => {
+			const watcher = vscode.workspace.createFileSystemWatcher(pattern);
+			watcher.onDidChange(this.debouncedCallback);
+			watcher.onDidCreate(this.debouncedCallback);
+			watcher.onDidDelete(this.debouncedCallback);
+			return watcher;
+		});
+	}
+	
+	clear() {
+		if (this.debounceTimeout) {
+			clearTimeout(this.debounceTimeout);
+			this.debounceTimeout = undefined;
+		}
+		this.watchers.forEach(w => w.dispose());
+		this.watchers = [];
+	}
+	dispose() {
+		this.clear();
+	}
+}
 
 //-----------------------------------------------------------------------------
 // entry
 //-----------------------------------------------------------------------------
 
 export function activate(context: vscode.ExtensionContext) {
+	//const launchConfig	= vscode.debug.configuration;
+	//console.log("Initial launchName is", launchConfig?.name);
+	//vscode.debug.onDidChangeConfiguration(config => console.log("Changed to", config.configuration?.name));
+
 	const shared		= new TasksShared(context);
 	const taskTree		= new TaskTreeProvider(shared, true, false);
 	const launchTree	= new TaskTreeProvider(shared, false, true);
@@ -37,6 +121,24 @@ export function activate(context: vscode.ExtensionContext) {
 	setContext('showLaunches',		config.showLaunches);
 	setContext('groupByWorkspace',	config.groupByWorkspace);
 	setLaunchContext('groupByWorkspace',	config.launch.groupByWorkspace);
+
+	// Register npm scripts provider
+	if (vscode.workspace.workspaceFolders) {
+		const watchers = new Watchers(shared.refresh);
+		
+		// Use RelativePattern for each workspace folder
+		const updateWatchers = () => watchers.set(vscode.workspace.workspaceFolders?.map(folder => new vscode.RelativePattern(folder, 'package.json')) ?? []);
+		updateWatchers();
+		
+		context.subscriptions.push(
+			watchers,
+			vscode.workspace.onDidChangeWorkspaceFolders(updateWatchers)
+		);
+		
+		shared.registerProvider({
+			provideItems: () => Promise.all(vscode.workspace.workspaceFolders!.map(folder => getNpmScripts(folder).catch(_error => []))).then(items => items.flat())
+		});
+	}
 
 	context.subscriptions.push(
 		vscode.window.registerTreeDataProvider('taskviewer.view', taskTree),

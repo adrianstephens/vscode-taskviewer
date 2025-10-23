@@ -4,21 +4,20 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "npm: compile",
+			"label": "npm: build",
 			"type": "npm",
-			"script": "compile",
-			"isBackground": false,
+			"script": "build",
 			"group": {
 				"kind": "build",
 				"isDefault": true
 			},
-			"problemMatcher": "$tsc-watch"
+			"problemMatcher": "$tsc"
 		},
 		{
 			"label": "npm: watch",
-			"type": "shell",
+			"type": "npm",
+			"script": "watch",
 			"group": "build",
-			"command": "tsc -watch -p ./",
 			"problemMatcher": "$tsc-watch",
 			"isBackground": true
 		},
@@ -30,7 +29,7 @@
 				"command": "git add . & if not ${input:version}==none npm version ${input:version} --force"
 			},
 			"problemMatcher": [],
-			"dependsOn": "npm: compile"
+			"dependsOn": "npm: build"
 		},
 		{
 			"type": "shell",
