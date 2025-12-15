@@ -2,9 +2,7 @@
 // <reference path="E:/Github/vscode/src/vscode-dts/vscode.proposed.debugLaunchName.d.ts" />
 
 import * as vscode from 'vscode';
-
 import { TasksShared, TaskTreeProvider, Item, CustomItem, editJSON, escapeRegex } from './tasktree';
-export { CustomItem } from './tasktree';
 
 async function getNpmScripts(workspace: vscode.WorkspaceFolder): Promise<CustomItem[]> {
 	const items: CustomItem[] = [];
@@ -86,7 +84,7 @@ class Watchers implements vscode.Disposable {
 // entry
 //-----------------------------------------------------------------------------
 
-export function activate(context: vscode.ExtensionContext) {
+function activate(context: vscode.ExtensionContext) {
 	//const launchConfig	= vscode.debug.configuration;
 	//console.log("Initial launchName is", launchConfig?.name);
 	//vscode.debug.onDidChangeConfiguration(config => console.log("Changed to", config.configuration?.name));
@@ -179,4 +177,6 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 //export function deactivate(): void {}
-export type exports = ReturnType<typeof activate>;
+module.exports = { activate };
+export type { CustomItem, TasksShared as exports} from './tasktree';
+
