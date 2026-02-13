@@ -94,18 +94,26 @@ function activate(context: vscode.ExtensionContext) {
 	const launchTree	= new TaskTreeProvider(shared, false, true);
 
 	const config		= vscode.workspace.getConfiguration('taskviewer');
+	config.inspect('groupByWorkspace');
 
-	const setContext	= (name: 'showLaunches'|'showAll'|'groupByWorkspace', value: boolean) => {
+	const setContext		= (name: 'showLaunches'|'showAll'|'groupByWorkspace', value: boolean) => {
 		vscode.commands.executeCommand("setContext", "taskviewer." + name, taskTree[name] = value);
 	};
+	const setLaunchContext	= (name: 'groupByWorkspace', value: boolean) => {
+		vscode.commands.executeCommand("setContext", "launchviewer." + name, launchTree[name] = value);
+	};
+	
+	const setContextFromConfig = (config: vscode.WorkspaceConfiguration) => {
+		setContext('showAll',					config.get('showAll', false));
+		setContext('showLaunches',				config.get('showLaunches', false));
+		setContext('groupByWorkspace',			config.get('groupByWorkspace', false));
+		setLaunchContext('groupByWorkspace',	config.get('launch.groupByWorkspace', false));
+	};
+
 	const setConfig		= (name: 'showLaunches'|'showAll'|'groupByWorkspace', value: boolean) => {
 		setContext(name, value);
 		taskTree.refresh();
 		config.update(name, value);
-	};
-
-	const setLaunchContext	= (name: 'groupByWorkspace', value: boolean) => {
-		vscode.commands.executeCommand("setContext", "launchviewer." + name, launchTree[name] = value);
 	};
 	const setLaunchConfig	= (name: 'groupByWorkspace', value: boolean) => {
 		setLaunchContext(name, value);
@@ -115,10 +123,7 @@ function activate(context: vscode.ExtensionContext) {
 
 	vscode.commands.executeCommand("setContext", 'taskviewer.multiroot', shared.multiRoot);
 
-	setContext('showAll',			config.showAll);
-	setContext('showLaunches',		config.showLaunches);
-	setContext('groupByWorkspace',	config.groupByWorkspace);
-	setLaunchContext('groupByWorkspace',	config.launch.groupByWorkspace);
+	setContextFromConfig(config);
 
 	// Register npm scripts provider
 	if (vscode.workspace.workspaceFolders) {
@@ -139,6 +144,14 @@ function activate(context: vscode.ExtensionContext) {
 	}
 
 	context.subscriptions.push(
+		vscode.workspace.onDidChangeConfiguration(e => {
+			if (e.affectsConfiguration('taskviewer')) {
+				setContextFromConfig(vscode.workspace.getConfiguration('taskviewer'));
+				taskTree.refresh();
+				launchTree.refresh();
+			}
+		}),
+
 		vscode.window.registerTreeDataProvider('taskviewer.view', taskTree),
 		vscode.window.registerTreeDataProvider('launchviewer.view', launchTree),
 

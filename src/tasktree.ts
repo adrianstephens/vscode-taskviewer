@@ -255,7 +255,11 @@ export class TasksShared implements vscode.FileDecorationProvider {
 		const getTasksLaunches = (workspace: vscode.WorkspaceFolder|undefined) => {
 			const tasks		= vscode.workspace.getConfiguration('tasks', workspace?.uri);
 			const launch	= vscode.workspace.getConfiguration('launch', workspace?.uri);
-			return {
+			return workspace ? {
+				taskConfigs:	tasks.inspect<TaskConfiguration[]>('tasks')?.workspaceFolderValue ?? [],
+				launches:		launch.inspect<LaunchConfiguration[]>('configurations')?.workspaceFolderValue ?? [],
+				compounds:		launch.inspect<CompoundLaunchConfiguration[]>('compounds')?.workspaceFolderValue ?? [],
+			} : {
 				taskConfigs:	tasks.get<TaskConfiguration[]>('tasks') ?? [],
 				launches:		launch.get<LaunchConfiguration[]>('configurations') ?? [],
 				compounds:		launch.get<CompoundLaunchConfiguration[]>('compounds') ?? [],
